@@ -307,7 +307,7 @@ export default function ProfileScreen() {
             textAlign: 'center',
           }}
         >
-          Danger zone
+          Destructive zone
         </Text>
         <Pressable
           onPress={confirmDelete}
