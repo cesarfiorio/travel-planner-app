@@ -39,7 +39,7 @@ export default function LoginScreen() {
       return;
     }
     if (session) {
-      router.replace('/(tabs)');
+      router.replace('/');
     }
   }, [isReady, session, router]);
 

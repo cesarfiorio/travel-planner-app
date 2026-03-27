@@ -1,0 +1,163 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { hasSupabaseEnv, supabase } from '../supabase';
+import type { Tables } from '../supabase/types';
+
+import { useAuth } from './useAuth';
+
+export type ProfileRow = Tables<'profiles'>;
+
+export const profileQueryKey = (userId: string) => ['profile', userId] as const;
+
+export const completedTripsCountKey = (userId: string) =>
+  ['completedTripsCount', userId] as const;
+
+export function useProfile() {
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  return useQuery({
+    queryKey: profileQueryKey(userId ?? ''),
+    enabled: Boolean(userId && hasSupabaseEnv && supabase),
+    queryFn: async (): Promise<ProfileRow | null> => {
+      if (!supabase || !userId) {
+        return null;
+      }
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      return data;
+    },
+  });
+}
+
+export function useCompletedTripsCount() {
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  return useQuery({
+    queryKey: completedTripsCountKey(userId ?? ''),
+    enabled: Boolean(userId && hasSupabaseEnv && supabase),
+    queryFn: async (): Promise<number> => {
+      if (!supabase || !userId) {
+        return 0;
+      }
+
+      const { data: memberships, error: memberError } = await supabase
+        .from('trip_members')
+        .select('trip_id')
+        .eq('user_id', userId);
+
+      if (memberError) {
+        throw memberError;
+      }
+
+      const tripIds = [...new Set((memberships ?? []).map((r) => r.trip_id))];
+      if (tripIds.length === 0) {
+        return 0;
+      }
+
+      const { count, error: countError } = await supabase
+        .from('trips')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'completed')
+        .in('id', tripIds);
+
+      if (countError) {
+        throw countError;
+      }
+
+      return count ?? 0;
+    },
+  });
+}
+
+export function useUpdateProfileName() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async (fullName: string) => {
+      if (!supabase || !userId) {
+        throw new Error('Not signed in');
+      }
+      const trimmed = fullName.trim();
+      if (!trimmed) {
+        throw new Error('Name cannot be empty');
+      }
+
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: trimmed,
+          display_name: trimmed,
+          updated_at: now,
+        })
+        .eq('id', userId)
+        .select('*');
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.length) {
+        const { error: insertError } = await supabase.from('profiles').insert({
+          id: userId,
+          full_name: trimmed,
+          display_name: trimmed,
+          updated_at: now,
+        });
+        if (insertError) {
+          throw insertError;
+        }
+      }
+    },
+    onMutate: async (fullName: string) => {
+      await queryClient.cancelQueries({ queryKey: profileQueryKey(userId) });
+      const previous = queryClient.getQueryData<ProfileRow | null>(profileQueryKey(userId));
+
+      const trimmed = fullName.trim();
+      queryClient.setQueryData<ProfileRow | null>(profileQueryKey(userId), (old) => {
+        if (!old) {
+          return {
+            id: userId,
+            full_name: trimmed,
+            display_name: trimmed,
+            avatar_url: null,
+            plan: 'free',
+            created_at: nowIso(),
+            updated_at: nowIso(),
+          } as ProfileRow;
+        }
+        return {
+          ...old,
+          full_name: trimmed,
+          display_name: trimmed,
+          updated_at: nowIso(),
+        };
+      });
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(profileQueryKey(userId), context.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
+    },
+  });
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}

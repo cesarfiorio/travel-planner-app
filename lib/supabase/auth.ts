@@ -5,6 +5,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 
+import { queryClient } from '../query/queryClient';
 import { useAuthStore } from '../store/authStore';
 import { hasSupabaseEnv, supabase } from '../supabase';
 
@@ -156,8 +157,49 @@ export async function signOut(): Promise<void> {
       await supabase.auth.signOut({ scope: 'global' });
     }
   } finally {
+    queryClient.clear();
     useAuthStore.getState().clearAuth();
     await useAuthStore.persist.clearStorage();
     router.replace('/(auth)/login');
   }
+}
+
+/**
+ * Deletes the currently authenticated user via GoTrue (requires allow list / provider settings).
+ * Clears TanStack Query cache and local session afterward.
+ */
+export async function deleteOwnAccount(): Promise<void> {
+  if (!hasSupabaseEnv || !supabase) {
+    throw new Error('Supabase is not configured');
+  }
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error('No active session');
+  }
+
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: anonKey,
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(body || `Delete account failed (${res.status})`);
+  }
+
+  await signOut();
 }
