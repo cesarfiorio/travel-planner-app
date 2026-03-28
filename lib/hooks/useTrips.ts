@@ -23,6 +23,32 @@ type TripRowWithMembers = Tables<'trips'> & {
   trip_members: TripMemberBrief[] | null;
 };
 
+type TripMembersRow = { trip_id: string; user_id: string; role: string };
+
+function normalizeTripRow(t: Tables<'trips'>): Tables<'trips'> {
+  return {
+    ...t,
+    status: t.status ?? 'active',
+  };
+}
+
+/** Loads members in a separate query so PostgREST nested embed + RLS cannot fail the whole list. */
+function attachMembersToTrips(trips: Tables<'trips'>[], members: TripMembersRow[] | null): TripRowWithMembers[] {
+  const byTrip = new Map<string, TripMemberBrief[]>();
+  for (const m of members ?? []) {
+    const list = byTrip.get(m.trip_id) ?? [];
+    list.push({ user_id: m.user_id, role: m.role });
+    byTrip.set(m.trip_id, list);
+  }
+  return trips.map((raw) => {
+    const t = normalizeTripRow(raw);
+    return {
+      ...t,
+      trip_members: byTrip.get(t.id) ?? [],
+    };
+  });
+}
+
 export const myTripsQueryKey = (userId: string) => ['myTrips', userId] as const;
 
 export const tripDetailQueryKey = (tripId: string) => ['trip', tripId] as const;
@@ -79,15 +105,30 @@ export function useMyTrips() {
         return [];
       }
 
-      const { data: trips, error } = await supabase
+      const { data: tripsRaw, error } = await supabase
         .from('trips')
-        .select('*, trip_members(user_id, role)')
+        .select('*')
         .order('updated_at', { ascending: false });
 
       if (error) {
         throw error;
       }
-      const rows = (trips ?? []) as TripRowWithMembers[];
+      const tripsList = tripsRaw ?? [];
+      if (tripsList.length === 0) {
+        return [];
+      }
+
+      const tripIds = tripsList.map((x) => x.id);
+      const { data: membersRows, error: membersError } = await supabase
+        .from('trip_members')
+        .select('trip_id, user_id, role')
+        .in('trip_id', tripIds);
+
+      if (membersError) {
+        throw membersError;
+      }
+
+      const rows = attachMembersToTrips(tripsList, membersRows);
       const allUserIds: string[] = [];
       for (const t of rows) {
         allUserIds.push(t.created_by);
@@ -112,19 +153,25 @@ export function useTrip(tripId: string | undefined) {
       if (!supabase || !tripId) {
         return null;
       }
-      const { data, error } = await supabase
-        .from('trips')
-        .select('*, trip_members(user_id, role)')
-        .eq('id', tripId)
-        .maybeSingle();
+      const { data: tripRaw, error } = await supabase.from('trips').select('*').eq('id', tripId).maybeSingle();
 
       if (error) {
         throw error;
       }
-      if (!data) {
+      if (!tripRaw) {
         return null;
       }
-      const row = data as TripRowWithMembers;
+
+      const { data: membersRows, error: membersError } = await supabase
+        .from('trip_members')
+        .select('trip_id, user_id, role')
+        .eq('trip_id', tripId);
+
+      if (membersError) {
+        throw membersError;
+      }
+
+      const row = attachMembersToTrips([tripRaw], membersRows)[0];
       const ids = [row.created_by, ...(row.trip_members ?? []).map((m) => m.user_id)];
       const profileMap = await fetchProfilesForIds(ids);
       return mapTripRow(row, profileMap);
