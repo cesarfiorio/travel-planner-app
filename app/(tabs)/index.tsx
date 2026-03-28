@@ -16,6 +16,7 @@ import { EmptyTrips } from '../../components/EmptyTrips';
 import { TripCard } from '../../components/TripCard';
 import { TripSwitcher } from '../../components/TripSwitcher';
 import { colors } from '../../constants/colors';
+import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useMyTrips } from '../../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../../lib/store/appStore';
@@ -65,7 +66,7 @@ export default function ExploreHomeScreen() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
         <Text style={{ color: colors.text, textAlign: 'center', marginBottom: 16 }}>
-          {error instanceof Error ? error.message : t('trips:errorLoadTrips')}
+          {formatErrorMessage(error, t('trips:errorLoadTrips'))}
         </Text>
         <Pressable
           onPress={() => void refetch()}

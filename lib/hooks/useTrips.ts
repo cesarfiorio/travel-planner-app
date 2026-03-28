@@ -111,6 +111,9 @@ export function useMyTrips() {
         .order('updated_at', { ascending: false });
 
       if (error) {
+        if (__DEV__) {
+          console.error('[RouteFlow] useMyTrips trips:', error);
+        }
         throw error;
       }
       const tripsList = tripsRaw ?? [];
@@ -125,6 +128,9 @@ export function useMyTrips() {
         .in('trip_id', tripIds);
 
       if (membersError) {
+        if (__DEV__) {
+          console.error('[RouteFlow] useMyTrips trip_members:', membersError);
+        }
         throw membersError;
       }
 
