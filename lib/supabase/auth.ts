@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 
 import { i18n } from '../i18n';
 import { queryClient } from '../query/queryClient';
+import { useAppStore } from '../store/appStore';
 import { useAuthStore } from '../store/authStore';
 import { hasSupabaseEnv, supabase } from '../supabase';
 
@@ -176,6 +177,7 @@ export async function signOut(): Promise<void> {
     queryClient.clear();
     useAuthStore.getState().clearAuth();
     await useAuthStore.persist.clearStorage();
+    useAppStore.getState().setActiveTrip(null);
     router.replace('/(auth)/login');
   }
 }
