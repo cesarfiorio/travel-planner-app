@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Image, Text, View } from 'react-native';
 
 type AvatarProps = {
@@ -20,6 +21,7 @@ function initialsFromName(name: string): string {
 }
 
 export function Avatar({ name, imageUrl, size = 88 }: AvatarProps) {
+  const { t } = useTranslation('common');
   const diameter = size;
   const initials = initialsFromName(name);
 
@@ -32,7 +34,7 @@ export function Avatar({ name, imageUrl, size = 88 }: AvatarProps) {
           height: diameter,
           borderRadius: diameter / 2,
         }}
-        accessibilityLabel={`Profile photo for ${name}`}
+        accessibilityLabel={t('profilePhotoFor', { name })}
       />
     );
   }
@@ -47,7 +49,7 @@ export function Avatar({ name, imageUrl, size = 88 }: AvatarProps) {
         alignItems: 'center',
         justifyContent: 'center',
       }}
-      accessibilityLabel={`Avatar initials for ${name}`}
+      accessibilityLabel={t('avatarInitialsFor', { name })}
     >
       <Text
         style={{

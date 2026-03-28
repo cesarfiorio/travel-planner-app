@@ -5,6 +5,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 
+import { i18n } from '../i18n';
 import { queryClient } from '../query/queryClient';
 import { useAuthStore } from '../store/authStore';
 import { hasSupabaseEnv, supabase } from '../supabase';
@@ -12,6 +13,7 @@ import { hasSupabaseEnv, supabase } from '../supabase';
 /** Deep link path registered with Expo; add matching URLs in Supabase Auth → URL Configuration. */
 export const AUTH_CALLBACK_PATH = 'auth/callback';
 
+/** Use app scheme from `app.json`; allow `routeflow://auth/callback` in Supabase Auth → Redirect URLs. */
 export function getOAuthRedirectUri(): string {
   return makeRedirectUri({
     scheme: 'routeflow',
@@ -33,7 +35,7 @@ function getQueryParam(url: string, key: string): string | null {
 
 async function finalizeOAuthReturnUrl(url: string): Promise<void> {
   if (!supabase) {
-    throw new Error('Supabase is not configured');
+    throw new Error(i18n.t('common:errorSupabaseNotConfigured'));
   }
 
   const code = getQueryParam(url, 'code');
@@ -63,12 +65,12 @@ async function finalizeOAuthReturnUrl(url: string): Promise<void> {
     }
   }
 
-  throw new Error('Could not complete sign-in (missing authorization code or tokens).');
+  throw new Error(i18n.t('common:errorOAuthIncomplete'));
 }
 
 export async function signInWithGoogle(): Promise<void> {
   if (!hasSupabaseEnv || !supabase) {
-    throw new Error('Supabase is not configured');
+    throw new Error(i18n.t('common:errorSupabaseNotConfigured'));
   }
 
   const redirectTo = getOAuthRedirectUri();
@@ -86,17 +88,31 @@ export async function signInWithGoogle(): Promise<void> {
   }
 
   if (!data.url) {
-    throw new Error('No OAuth URL returned from Supabase');
+    throw new Error(i18n.t('common:errorNoOAuthUrl'));
+  }
+
+  if (__DEV__) {
+    console.log('[RouteFlow] OAuth redirectTo (must match Supabase Redirect URLs exactly):', redirectTo);
+    try {
+      const parsed = new URL(data.url);
+      console.log('[RouteFlow] OAuth opening:', parsed.origin + parsed.pathname);
+    } catch {
+      console.log('[RouteFlow] OAuth URL prefix:', data.url.slice(0, 96));
+    }
   }
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+  if (__DEV__) {
+    console.log('[RouteFlow] OAuth browser closed:', result.type);
+  }
 
   if (result.type === 'cancel' || result.type === 'dismiss') {
     return;
   }
 
   if (result.type !== 'success' || !result.url) {
-    throw new Error('Google sign-in did not return a result URL');
+    throw new Error(i18n.t('common:errorGoogleNoResultUrl'));
   }
 
   await finalizeOAuthReturnUrl(result.url);
@@ -113,12 +129,12 @@ function randomNonce(length = 32): string {
 
 export async function signInWithApple(): Promise<void> {
   if (!hasSupabaseEnv || !supabase) {
-    throw new Error('Supabase is not configured');
+    throw new Error(i18n.t('common:errorSupabaseNotConfigured'));
   }
 
   const isAvailable = await AppleAuthentication.isAvailableAsync();
   if (!isAvailable) {
-    throw new Error('Sign in with Apple is not available on this device');
+    throw new Error(i18n.t('common:errorAppleUnavailable'));
   }
 
   const rawNonce = randomNonce();
@@ -137,7 +153,7 @@ export async function signInWithApple(): Promise<void> {
   });
 
   if (!credential.identityToken) {
-    throw new Error('Apple did not return an identity token');
+    throw new Error(i18n.t('common:errorAppleNoToken'));
   }
 
   const { error } = await supabase.auth.signInWithIdToken({
@@ -170,14 +186,14 @@ export async function signOut(): Promise<void> {
  */
 export async function deleteOwnAccount(): Promise<void> {
   if (!hasSupabaseEnv || !supabase) {
-    throw new Error('Supabase is not configured');
+    throw new Error(i18n.t('common:errorSupabaseNotConfigured'));
   }
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !anonKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new Error(i18n.t('common:errorMissingEnv'));
   }
 
   const {
@@ -185,7 +201,7 @@ export async function deleteOwnAccount(): Promise<void> {
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error('No active session');
+    throw new Error(i18n.t('common:errorNoSession'));
   }
 
   const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
@@ -198,7 +214,7 @@ export async function deleteOwnAccount(): Promise<void> {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(body || `Delete account failed (${res.status})`);
+    throw new Error(body || i18n.t('common:errorDeleteAccountHttp', { status: res.status }));
   }
 
   await signOut();

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { formatErrorMessage } from '../formatError';
+import { i18n } from '../i18n';
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Tables } from '../supabase/types';
 
@@ -94,30 +96,19 @@ export function useUpdateProfileName() {
       }
 
       const now = new Date().toISOString();
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: trimmed,
-          display_name: trimmed,
-          updated_at: now,
-        })
-        .eq('id', userId)
-        .select('*');
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data?.length) {
-        const { error: insertError } = await supabase.from('profiles').insert({
+      const { error } = await supabase.from('profiles').upsert(
+        {
           id: userId,
           full_name: trimmed,
           display_name: trimmed,
           updated_at: now,
-        });
-        if (insertError) {
-          throw insertError;
-        }
+        },
+        { onConflict: 'id' },
+      );
+
+      if (error) {
+        const msg = formatErrorMessage(error, i18n.t('common:profileUpdateDbHint'));
+        throw new Error(msg);
       }
     },
     onMutate: async (fullName: string) => {

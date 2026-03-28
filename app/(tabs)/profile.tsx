@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +12,9 @@ import {
 } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
+import { LanguagePicker } from '../../components/LanguagePicker';
 import { colors } from '../../constants/colors';
+import { formatErrorMessage } from '../../lib/formatError';
 import {
   useCompletedTripsCount,
   useProfile,
@@ -19,26 +22,27 @@ import {
 } from '../../lib/hooks/useProfile';
 import { deleteOwnAccount, signOut } from '../../lib/supabase/auth';
 
-function planBadgeLabel(plan: string | undefined): string {
-  const p = (plan ?? 'free').toLowerCase();
-  if (p === 'plus') {
-    return 'Plus plan';
-  }
-  if (p === 'pro') {
-    return 'Pro plan';
-  }
-  return 'Free plan';
-}
-
 export default function ProfileScreen() {
+  const { t } = useTranslation(['profile', 'common']);
   const router = useRouter();
   const { data: profile, isLoading, isError, error, refetch } = useProfile();
   const { data: completedCount = 0, isLoading: isCountLoading } =
     useCompletedTripsCount();
   const updateName = useUpdateProfileName();
 
+  const planBadgeLabel = (plan: string | undefined): string => {
+    const p = (plan ?? 'free').toLowerCase();
+    if (p === 'plus') {
+      return t('profile:planPlus');
+    }
+    if (p === 'pro') {
+      return t('profile:planPro');
+    }
+    return t('profile:planFree');
+  };
+
   const displayName =
-    profile?.full_name?.trim() || profile?.display_name?.trim() || 'Traveler';
+    profile?.full_name?.trim() || profile?.display_name?.trim() || t('profile:travelerFallback');
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(displayName);
@@ -62,40 +66,36 @@ export default function ProfileScreen() {
   const saveEdit = () => {
     const trimmed = editName.trim();
     if (!trimmed) {
-      Alert.alert('Invalid name', 'Name cannot be empty.');
+      Alert.alert(t('profile:invalidNameTitle'), t('profile:invalidNameMessage'));
       return;
     }
     updateName.mutate(trimmed, {
       onSuccess: () => setIsEditing(false),
       onError: (e) =>
-        Alert.alert('Update failed', e instanceof Error ? e.message : 'Try again'),
+        Alert.alert(t('common:updateFailed'), formatErrorMessage(e, t('common:tryAgain'))),
     });
   };
 
   const confirmDelete = () => {
-    Alert.alert(
-      'Delete account',
-      'This permanently deletes your account and data. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              try {
-                await deleteOwnAccount();
-              } catch (e) {
-                Alert.alert(
-                  'Delete failed',
-                  e instanceof Error ? e.message : 'Please try again or contact support.',
-                );
-              }
-            })();
-          },
+    Alert.alert(t('profile:deleteAccountTitle'), t('profile:deleteAccountMessage'), [
+      { text: t('common:cancel'), style: 'cancel' },
+      {
+        text: t('profile:deleteConfirm'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteOwnAccount();
+            } catch (e) {
+              Alert.alert(
+                t('common:deleteFailed'),
+                e instanceof Error ? e.message : t('common:tryAgainSupport'),
+              );
+            }
+          })();
         },
-      ],
-    );
+      },
+    ]);
   };
 
   if (isLoading) {
@@ -109,7 +109,7 @@ export default function ProfileScreen() {
         }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 12, color: colors.inactive }}>Loading profile...</Text>
+        <Text style={{ marginTop: 12, color: colors.inactive }}>{t('common:loadingProfile')}</Text>
       </View>
     );
   }
@@ -126,7 +126,7 @@ export default function ProfileScreen() {
         }}
       >
         <Text style={{ color: colors.text, textAlign: 'center', marginBottom: 16 }}>
-          {error instanceof Error ? error.message : 'Could not load your profile.'}
+          {error instanceof Error ? error.message : t('common:couldNotLoadProfile')}
         </Text>
         <Pressable
           onPress={() => void refetch()}
@@ -137,7 +137,7 @@ export default function ProfileScreen() {
             borderRadius: 12,
           }}
         >
-          <Text style={{ color: '#ffffff', fontWeight: '600' }}>Retry</Text>
+          <Text style={{ color: '#ffffff', fontWeight: '600' }}>{t('common:retry')}</Text>
         </Pressable>
       </View>
     );
@@ -167,7 +167,7 @@ export default function ProfileScreen() {
 
       {isEditing ? (
         <>
-          <Text style={{ fontSize: 13, color: colors.inactive, marginBottom: 6 }}>Name</Text>
+          <Text style={{ fontSize: 13, color: colors.inactive, marginBottom: 6 }}>{t('common:name')}</Text>
           <TextInput
             value={editName}
             onChangeText={setEditName}
@@ -181,7 +181,7 @@ export default function ProfileScreen() {
               marginBottom: 16,
             }}
             autoCapitalize="words"
-            accessibilityLabel="Edit display name"
+            accessibilityLabel={t('profile:editDisplayNameA11y')}
           />
           <View style={{ flexDirection: 'row' }}>
             <Pressable
@@ -196,7 +196,7 @@ export default function ProfileScreen() {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontWeight: '600', color: colors.text }}>Cancel</Text>
+              <Text style={{ fontWeight: '600', color: colors.text }}>{t('common:cancel')}</Text>
             </Pressable>
             <Pressable
               onPress={saveEdit}
@@ -211,7 +211,7 @@ export default function ProfileScreen() {
                 opacity: updateName.isPending ? 0.7 : 1,
               }}
             >
-              <Text style={{ fontWeight: '600', color: '#ffffff' }}>Save</Text>
+              <Text style={{ fontWeight: '600', color: '#ffffff' }}>{t('common:save')}</Text>
             </Pressable>
           </View>
         </>
@@ -229,7 +229,7 @@ export default function ProfileScreen() {
             {displayName}
           </Text>
           <Pressable onPress={startEdit} style={{ alignSelf: 'center', marginBottom: 24 }}>
-            <Text style={{ color: colors.primary, fontWeight: '600' }}>Edit profile</Text>
+            <Text style={{ color: colors.primary, fontWeight: '600' }}>{t('profile:editProfile')}</Text>
           </Pressable>
         </>
       )}
@@ -243,7 +243,7 @@ export default function ProfileScreen() {
         }}
       >
         <Text style={{ fontSize: 14, color: colors.inactive, marginBottom: 4 }}>
-          Trips completed
+          {t('profile:tripsCompleted')}
         </Text>
         {isCountLoading ? (
           <ActivityIndicator color={colors.primary} />
@@ -252,6 +252,20 @@ export default function ProfileScreen() {
             {completedCount}
           </Text>
         )}
+      </View>
+
+      <View
+        style={{
+          marginTop: 24,
+          paddingTop: 20,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        }}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
+          {t('common:settings')}
+        </Text>
+        <LanguagePicker />
       </View>
 
       <Pressable
@@ -265,10 +279,10 @@ export default function ProfileScreen() {
           alignItems: 'center',
         })}
         accessibilityRole="button"
-        accessibilityLabel="Manage subscription"
+        accessibilityLabel={t('profile:manageSubscriptionA11y')}
       >
         <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 16 }}>
-          Manage Subscription
+          {t('profile:manageSubscription')}
         </Text>
       </Pressable>
 
@@ -284,10 +298,10 @@ export default function ProfileScreen() {
           opacity: pressed ? 0.85 : 1,
         })}
         accessibilityRole="button"
-        accessibilityLabel="Sign out"
+        accessibilityLabel={t('profile:signOutA11y')}
       >
         <Text style={{ fontWeight: '600', color: colors.text, fontSize: 16 }}>
-          Sign Out
+          {t('profile:signOut')}
         </Text>
       </Pressable>
 
@@ -307,7 +321,7 @@ export default function ProfileScreen() {
             textAlign: 'center',
           }}
         >
-          Destructive zone
+          {t('profile:destructiveZone')}
         </Text>
         <Pressable
           onPress={confirmDelete}
@@ -320,10 +334,10 @@ export default function ProfileScreen() {
             opacity: pressed ? 0.9 : 1,
           })}
           accessibilityRole="button"
-          accessibilityLabel="Delete account"
+          accessibilityLabel={t('profile:deleteAccountA11y')}
         >
           <Text style={{ fontWeight: '700', color: '#DC2626', fontSize: 16 }}>
-            Delete Account
+            {t('profile:deleteAccount')}
           </Text>
         </Pressable>
       </View>

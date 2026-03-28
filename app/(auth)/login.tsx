@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
+import { colors } from '../../constants/colors';
 import { useAuth } from '../../lib/hooks/useAuth';
 import {
   getOAuthRedirectUri,
@@ -19,11 +21,10 @@ import {
   signInWithGoogle,
 } from '../../lib/supabase/auth';
 
-import { colors } from '../../constants/colors';
-
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
+  const { t } = useTranslation(['auth', 'common']);
   const router = useRouter();
   const { session, isReady } = useAuth();
   const [busyProvider, setBusyProvider] = useState<'google' | 'apple' | null>(null);
@@ -48,8 +49,11 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Google sign-in failed';
-      Alert.alert('Sign in failed', message);
+      const message = e instanceof Error ? e.message : t('common:googleSignInFailed');
+      const devRedirectHint = __DEV__
+        ? t('common:devRedirectHint', { uri: getOAuthRedirectUri() })
+        : '';
+      Alert.alert(t('common:signInFailed'), `${message}${devRedirectHint}`);
     } finally {
       setBusyProvider(null);
     }
@@ -68,8 +72,8 @@ export default function LoginScreen() {
       ) {
         return;
       }
-      const message = e instanceof Error ? e.message : 'Apple sign-in failed';
-      Alert.alert('Sign in failed', message);
+      const message = e instanceof Error ? e.message : t('common:appleSignInFailed');
+      Alert.alert(t('common:signInFailed'), message);
     } finally {
       setBusyProvider(null);
     }
@@ -86,7 +90,7 @@ export default function LoginScreen() {
         }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.text }}>Loading...</Text>
+        <Text style={{ marginTop: 16, color: colors.text }}>{t('common:loading')}</Text>
       </View>
     );
   }
@@ -108,7 +112,7 @@ export default function LoginScreen() {
         <Image
           source={require('../../assets/icon.png')}
           style={{ width: 88, height: 88, borderRadius: 20, marginBottom: 16 }}
-          accessibilityLabel="RouteFlow app icon"
+          accessibilityLabel={t('auth:appIconA11y')}
         />
         <Text
           style={{
@@ -118,7 +122,7 @@ export default function LoginScreen() {
             letterSpacing: -0.5,
           }}
         >
-          RouteFlow
+          {t('auth:brandName')}
         </Text>
         <Text
           style={{
@@ -129,7 +133,7 @@ export default function LoginScreen() {
             lineHeight: 24,
           }}
         >
-          Travel together. Split everything.
+          {t('auth:tagline')}
         </Text>
       </View>
 
@@ -151,7 +155,7 @@ export default function LoginScreen() {
           marginBottom: 12,
         })}
         accessibilityRole="button"
-        accessibilityLabel="Continue with Google"
+        accessibilityLabel={t('auth:continueWithGoogleA11y')}
       >
         {busyProvider === 'google' ? (
           <ActivityIndicator color="#4285F4" />
@@ -159,7 +163,7 @@ export default function LoginScreen() {
           <>
             <Ionicons name="logo-google" size={22} color="#4285F4" />
             <Text style={{ fontSize: 16, fontWeight: '600', color: '#3c4043' }}>
-              Continue with Google
+              {t('auth:continueWithGoogle')}
             </Text>
           </>
         )}
@@ -181,7 +185,7 @@ export default function LoginScreen() {
           marginBottom: 24,
         })}
         accessibilityRole="button"
-        accessibilityLabel="Continue with Apple"
+        accessibilityLabel={t('auth:continueWithAppleA11y')}
       >
         {busyProvider === 'apple' ? (
           <ActivityIndicator color="#ffffff" />
@@ -189,7 +193,7 @@ export default function LoginScreen() {
           <>
             <Ionicons name="logo-apple" size={24} color="#ffffff" />
             <Text style={{ fontSize: 16, fontWeight: '600', color: '#ffffff' }}>
-              Continue with Apple
+              {t('auth:continueWithApple')}
             </Text>
           </>
         )}
@@ -203,7 +207,7 @@ export default function LoginScreen() {
           lineHeight: 18,
         }}
       >
-        By continuing, you agree to our Terms & Privacy Policy
+        {t('common:termsPrivacy')}
       </Text>
     </ScrollView>
   );

@@ -1,4 +1,5 @@
 import { Redirect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
@@ -6,6 +7,7 @@ import { useAuth } from '../lib/hooks/useAuth';
 import { useProfile } from '../lib/hooks/useProfile';
 
 function AuthenticatedGate() {
+  const { t } = useTranslation('common');
   const { session } = useAuth();
   const { data: profile, isLoading, isError, error } = useProfile();
 
@@ -20,7 +22,7 @@ function AuthenticatedGate() {
         }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 12, color: colors.text }}>Loading...</Text>
+        <Text style={{ marginTop: 12, color: colors.text }}>{t('loading')}</Text>
       </View>
     );
   }
@@ -37,7 +39,7 @@ function AuthenticatedGate() {
         }}
       >
         <Text style={{ color: colors.text, textAlign: 'center' }}>
-          {error instanceof Error ? error.message : 'Unable to load your profile.'}
+          {error instanceof Error ? error.message : t('unableLoadProfile')}
         </Text>
       </View>
     );
@@ -52,6 +54,7 @@ function AuthenticatedGate() {
 }
 
 export default function Index() {
+  const { t } = useTranslation('common');
   const { isReady, session } = useAuth();
 
   if (!isReady) {
@@ -65,7 +68,7 @@ export default function Index() {
         }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 12, color: colors.text }}>Loading...</Text>
+        <Text style={{ marginTop: 12, color: colors.text }}>{t('loading')}</Text>
       </View>
     );
   }

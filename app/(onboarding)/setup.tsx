@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -12,9 +13,11 @@ import {
 } from 'react-native';
 
 import { colors } from '../../constants/colors';
+import { formatErrorMessage } from '../../lib/formatError';
 import { useUpdateProfileName } from '../../lib/hooks/useProfile';
 
 export default function OnboardingSetupScreen() {
+  const { t } = useTranslation(['profile', 'common']);
   const router = useRouter();
   const [name, setName] = useState('');
   const updateProfile = useUpdateProfileName();
@@ -22,7 +25,7 @@ export default function OnboardingSetupScreen() {
   const submit = () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      Alert.alert('Name required', 'Please enter how you would like to be called.');
+      Alert.alert(t('profile:nameRequiredTitle'), t('profile:nameRequiredMessage'));
       return;
     }
 
@@ -31,8 +34,8 @@ export default function OnboardingSetupScreen() {
         router.replace('/(tabs)');
       },
       onError: (err) => {
-        const message = err instanceof Error ? err.message : 'Could not save your name';
-        Alert.alert('Something went wrong', message);
+        const message = formatErrorMessage(err, t('common:couldNotSaveName'));
+        Alert.alert(t('common:somethingWentWrong'), message);
       },
     });
   };
@@ -51,13 +54,13 @@ export default function OnboardingSetupScreen() {
             marginBottom: 24,
           }}
         >
-          What should we call you?
+          {t('profile:onboardingHeadline')}
         </Text>
 
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Your name"
+          placeholder={t('profile:yourNamePlaceholder')}
           placeholderTextColor={colors.inactive}
           autoFocus
           autoCapitalize="words"
@@ -74,7 +77,7 @@ export default function OnboardingSetupScreen() {
             color: colors.text,
             marginBottom: 24,
           }}
-          accessibilityLabel="Display name"
+          accessibilityLabel={t('profile:displayNameA11y')}
         />
 
         <Pressable
@@ -91,12 +94,12 @@ export default function OnboardingSetupScreen() {
             opacity: updateProfile.isPending ? 0.7 : pressed ? 0.9 : 1,
           })}
           accessibilityRole="button"
-          accessibilityLabel="Continue to the app"
+          accessibilityLabel={t('profile:continueToAppA11y')}
         >
           {updateProfile.isPending ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '700' }}>{`Let's go →`}</Text>
+            <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '700' }}>{t('profile:letsGo')}</Text>
           )}
         </Pressable>
       </View>

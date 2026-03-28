@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
 
 export default function PaywallScreen() {
   const router = useRouter();
+  const { t } = useTranslation('paywall');
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, padding: 24, paddingTop: 56 }}>
@@ -12,16 +14,14 @@ export default function PaywallScreen() {
         onPress={() => router.back()}
         style={{ marginBottom: 24, alignSelf: 'flex-start' }}
         accessibilityRole="button"
-        accessibilityLabel="Go back"
+        accessibilityLabel={t('goBackA11y')}
       >
-        <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 16 }}>← Back</Text>
+        <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 16 }}>{t('back')}</Text>
       </Pressable>
       <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 12 }}>
-        Manage Subscription
+        {t('title')}
       </Text>
-      <Text style={{ fontSize: 16, color: colors.inactive, lineHeight: 22 }}>
-        Subscription and billing will be available here in a future update.
-      </Text>
+      <Text style={{ fontSize: 16, color: colors.inactive, lineHeight: 22 }}>{t('body')}</Text>
     </View>
   );
 }
