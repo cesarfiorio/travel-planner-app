@@ -15,12 +15,22 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.inactive,
       }}
     >
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen
-        name="index"
+        name="explore"
         options={{
           title: t('explore:tabTitle'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: t('trips:tripsTabTitle'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />

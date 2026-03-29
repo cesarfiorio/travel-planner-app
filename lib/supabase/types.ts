@@ -333,26 +333,35 @@ export type Database = {
       trip_places: {
         Row: {
           created_at: string
+          day_number: number
           id: string
           notes: string | null
+          order_index: number
           place_id: string
           sort_order: number
+          status: string
           trip_id: string
         }
         Insert: {
           created_at?: string
+          day_number?: number
           id?: string
           notes?: string | null
+          order_index?: number
           place_id: string
           sort_order?: number
+          status?: string
           trip_id: string
         }
         Update: {
           created_at?: string
+          day_number?: number
           id?: string
           notes?: string | null
+          order_index?: number
           place_id?: string
           sort_order?: number
+          status?: string
           trip_id?: string
         }
         Relationships: [

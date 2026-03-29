@@ -7,6 +7,23 @@ export type PlaceCategory =
   | 'shopping'
   | 'accommodation';
 
+/** Explore chip filter: All plus the five categories shown in the UI (no accommodation chip). */
+export type ExploreCategoryFilter =
+  | 'all'
+  | 'restaurants'
+  | 'attractions'
+  | 'outdoor'
+  | 'nightlife'
+  | 'shopping';
+
+export const EXPLORE_PARALLEL_CATEGORIES: readonly PlaceCategory[] = [
+  'restaurants',
+  'attractions',
+  'outdoor',
+  'nightlife',
+  'shopping',
+] as const;
+
 /** Place row returned from the proxy (maps DB + Google fields). */
 export interface Place {
   id: string;

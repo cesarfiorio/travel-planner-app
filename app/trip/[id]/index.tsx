@@ -173,7 +173,7 @@ export default function TripDetailScreen() {
             emoji="🔍"
             label={t('actionExplore')}
             a11y={t('actionExplore')}
-            onPress={() => router.push('/(tabs)')}
+            onPress={() => router.push('/(tabs)/explore')}
           />
           <ActionCard
             emoji="🗺"

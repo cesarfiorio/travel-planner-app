@@ -9,7 +9,13 @@ import { useMyTrips } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
 import { sortTripsForHome } from '../lib/trips/tripUi';
 
-export function TripSwitcher() {
+export type TripSwitcherVariant = 'banner' | 'icon';
+
+type TripSwitcherProps = {
+  variant?: TripSwitcherVariant;
+};
+
+export function TripSwitcher({ variant = 'banner' }: TripSwitcherProps) {
   const { t } = useTranslation('trips');
   const insets = useSafeAreaInsets();
   const { data: trips = [], isLoading } = useMyTrips();
@@ -27,8 +33,18 @@ export function TripSwitcher() {
     return null;
   }
 
-  return (
-    <>
+  const openButton =
+    variant === 'icon' ? (
+      <Pressable
+        onPress={() => setOpen(true)}
+        hitSlop={12}
+        style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, padding: 4 })}
+        accessibilityRole="button"
+        accessibilityLabel={t('switcherOpenA11y')}
+      >
+        <Ionicons name="albums-outline" size={26} color={colors.text} />
+      </Pressable>
+    ) : (
       <Pressable
         onPress={() => setOpen(true)}
         style={({ pressed }) => ({
@@ -53,6 +69,11 @@ export function TripSwitcher() {
         </Text>
         <Ionicons name="chevron-down" size={20} color={colors.inactive} importantForAccessibility="no" />
       </Pressable>
+    );
+
+  return (
+    <>
+      {openButton}
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <View style={styles.modalRoot}>
