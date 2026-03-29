@@ -1,3 +1,5 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
+
 import { hasSupabaseEnv, supabase } from '../supabase';
 
 import type { Place, PlaceCategory } from '../../types/places';
@@ -73,20 +75,62 @@ function assertPlacesPayload(data: unknown): Place[] {
 
 /**
  * Search cached / Google Places via Edge Function. API key stays on the server.
+ *
+ * Supabase’s Edge gateway with **Verify JWT with legacy secret** ON validates `Authorization`
+ * using the **legacy JWT secret**. User session tokens are often **ES256** and get **401** there.
+ * This handler is public (service role inside), so we send **anon JWT** as both `Authorization`
+ * and `apikey`—same as the dashboard cURL—while still requiring a signed-in session in the app.
  */
 export async function searchPlaces(destination: string, category: PlaceCategory, query?: string): Promise<Place[]> {
   if (!hasSupabaseEnv || !supabase) {
     throw new PlacesApiError('Supabase is not configured');
   }
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError || !session?.access_token) {
+    throw new PlacesApiError('Sign in required to search places.');
+  }
+
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const anon = anonKey.trim();
+  if (!anon) {
+    throw new PlacesApiError('Supabase is not configured');
+  }
+
   const { data, error } = await supabase.functions.invoke<SearchPlacesResponse>('search-places', {
     body: {
       destination,
       category,
       ...(query !== undefined && query !== '' ? { query } : {}),
     },
+    headers: {
+      Authorization: `Bearer ${anon}`,
+      apikey: anon,
+    },
   });
   if (error) {
-    throw new PlacesApiError(error.message ?? 'Request failed', error.name);
+    let message = error.message ?? 'Request failed';
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const errBody = (await error.context.json()) as {
+          error?: string;
+          detail?: string;
+          message?: string | null;
+        };
+        if (typeof errBody?.error === 'string') {
+          const extra =
+            typeof errBody.detail === 'string'
+              ? `${errBody.error}: ${errBody.detail}${errBody.message ? ` — ${errBody.message}` : ''}`
+              : errBody.error;
+          message = `${message} (${extra})`;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    throw new PlacesApiError(message, error.name);
   }
   return assertPlacesPayload(data);
 }

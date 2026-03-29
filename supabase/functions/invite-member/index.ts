@@ -31,23 +31,30 @@ Deno.serve(async (req) => {
   }
 
   const authHeader = req.headers.get('Authorization') ?? '';
-  if (!authHeader.startsWith('Bearer ')) {
+  const bearerMatch = /^Bearer\s+(\S+)/i.exec(authHeader.trim());
+  const accessToken = bearerMatch?.[1]?.trim() ?? '';
+  if (!accessToken) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
+  const verifyClient = createClient(supabaseUrl, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
   });
 
   const {
     data: { user },
     error: userErr,
-  } = await userClient.auth.getUser();
+  } = await verifyClient.auth.getUser(accessToken);
 
   if (userErr || !user) {
+    console.error('[invite-member] auth.getUser failed:', userErr?.message ?? 'no user');
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

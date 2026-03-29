@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { searchPlaces } from '../api/places';
+import { useAuth } from './useAuth';
 import { hasSupabaseEnv, supabase } from '../supabase';
 
 import type { ExploreCategoryFilter, Place, PlaceCategory } from '../../types/places';
@@ -12,8 +13,10 @@ export const searchPlacesQueryKey = (destination: string, category: ExploreCateg
 const STALE_MS = 10 * 60 * 1000;
 
 export function useSearchPlaces(destination: string | undefined, category: ExploreCategoryFilter) {
+  const { session, isReady } = useAuth();
   const dest = destination?.trim() ?? '';
-  const enabled = Boolean(dest && hasSupabaseEnv && supabase);
+  const hasUserJwt = Boolean(session?.access_token);
+  const enabled = Boolean(dest && hasSupabaseEnv && supabase && isReady && hasUserJwt);
 
   return useQuery({
     queryKey: searchPlacesQueryKey(dest || '_', category),

@@ -1,4 +1,5 @@
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export function getPlacePhotoSource(
   photoReference: string | undefined,
@@ -9,6 +10,9 @@ export function getPlacePhotoSource(
   }
   return {
     uri: `${supabaseUrl.replace(/\/$/, '')}/functions/v1/place-photo?photo_reference=${encodeURIComponent(photoReference.trim())}`,
-    headers: { Authorization: `Bearer ${accessToken.trim()}` },
+    headers: {
+      Authorization: `Bearer ${accessToken.trim()}`,
+      ...(supabaseAnonKey.trim() ? { apikey: supabaseAnonKey.trim() } : {}),
+    },
   };
 }

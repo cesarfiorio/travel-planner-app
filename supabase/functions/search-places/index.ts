@@ -183,11 +183,10 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const googleKey = Deno.env.get('GOOGLE_PLACES_API_KEY') ?? '';
 
-  if (!supabaseUrl || !anonKey || !serviceKey) {
+  if (!supabaseUrl || !serviceKey) {
     return new Response(JSON.stringify({ error: 'server_misconfigured' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -201,29 +200,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  const authHeader = req.headers.get('Authorization') ?? '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-
-  const {
-    data: { user },
-    error: userErr,
-  } = await userClient.auth.getUser();
-
-  if (userErr || !user) {
-    return new Response(JSON.stringify({ error: 'unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  // Public search proxy: no JWT required. Client may still send Authorization (gateway / habit);
+  // cache + Google are accessed only via service role here.
 
   let body: SearchBody;
   try {
@@ -301,9 +279,30 @@ Deno.serve(async (req) => {
   gUrl.searchParams.set('key', googleKey);
 
   const gRes = await fetch(gUrl.toString());
-  const gJson = (await gRes.json()) as GoogleTextSearchResponse;
+  let gJson: GoogleTextSearchResponse;
+  try {
+    gJson = (await gRes.json()) as GoogleTextSearchResponse;
+  } catch {
+    console.error('[search-places] Google response was not JSON', gRes.status);
+    return new Response(
+      JSON.stringify({
+        error: 'google_places_failed',
+        detail: 'invalid_json',
+        message: null,
+      }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    );
+  }
 
   if (gJson.status !== 'OK' && gJson.status !== 'ZERO_RESULTS') {
+    console.error(
+      '[search-places] Google Places Text Search failed:',
+      gJson.status,
+      gJson.error_message ?? '',
+    );
     return new Response(
       JSON.stringify({
         error: 'google_places_failed',
