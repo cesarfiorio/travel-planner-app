@@ -204,7 +204,10 @@ export type Database = {
       }
       places: {
         Row: {
+          cached_at: string | null
+          category: string | null
           created_at: string
+          destination_normalized: string | null
           formatted_address: string | null
           google_place_id: string | null
           id: string
@@ -212,10 +215,20 @@ export type Database = {
           longitude: number | null
           metadata: Json
           name: string
+          opening_hours: Json | null
+          phone: string | null
+          photos: Json
+          price_level: number | null
+          rating: number | null
           updated_at: string
+          views_count: number
+          website: string | null
         }
         Insert: {
+          cached_at?: string | null
+          category?: string | null
           created_at?: string
+          destination_normalized?: string | null
           formatted_address?: string | null
           google_place_id?: string | null
           id?: string
@@ -223,10 +236,20 @@ export type Database = {
           longitude?: number | null
           metadata?: Json
           name: string
+          opening_hours?: Json | null
+          phone?: string | null
+          photos?: Json
+          price_level?: number | null
+          rating?: number | null
           updated_at?: string
+          views_count?: number
+          website?: string | null
         }
         Update: {
+          cached_at?: string | null
+          category?: string | null
           created_at?: string
+          destination_normalized?: string | null
           formatted_address?: string | null
           google_place_id?: string | null
           id?: string
@@ -234,7 +257,14 @@ export type Database = {
           longitude?: number | null
           metadata?: Json
           name?: string
+          opening_hours?: Json | null
+          phone?: string | null
+          photos?: Json
+          price_level?: number | null
+          rating?: number | null
           updated_at?: string
+          views_count?: number
+          website?: string | null
         }
         Relationships: []
       }
@@ -386,6 +416,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      routeflow_increment_places_views: { Args: { p_ids: string[] }; Returns: undefined }
       routeflow_user_id_by_email: { Args: { p_email: string }; Returns: string | null }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
