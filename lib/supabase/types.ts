@@ -386,6 +386,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      routeflow_user_id_by_email: { Args: { p_email: string }; Returns: string | null }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }

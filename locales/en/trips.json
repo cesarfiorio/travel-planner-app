@@ -67,5 +67,12 @@
   "errorLoadTrips": "Could not load trips.",
   "errorNotOwner": "You do not have permission to change this trip.",
   "errorDeleteFailed": "Could not delete the trip.",
-  "errorUpdateFailed": "Could not update the trip."
+  "errorUpdateFailed": "Could not update the trip.",
+  "actionExplore": "Explore",
+  "actionItinerary": "Itinerary",
+  "actionExpenses": "Expenses",
+  "actionMembers": "Members",
+  "finishTrip": "Finish Trip",
+  "finishTripA11y": "Finish trip",
+  "finishTripPlaceholder": "Finishing a trip will be available in a later update."
 }

@@ -1,13 +1,58 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../../constants/colors';
+import { useAuth } from '../../../lib/hooks/useAuth';
 import { useTrip } from '../../../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../../../lib/store/appStore';
+
+function tripLifecycleStep(status: string): 0 | 1 | 2 {
+  if (status === 'planning') {
+    return 0;
+  }
+  if (status === 'active') {
+    return 1;
+  }
+  return 2;
+}
+
+type ActionCardProps = {
+  emoji: string;
+  label: string;
+  onPress: () => void;
+  a11y: string;
+};
+
+function ActionCard({ emoji, label, onPress, a11y }: ActionCardProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        width: '47%',
+        minHeight: 96,
+        marginBottom: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: colors.border,
+        justifyContent: 'center',
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+    >
+      <Text style={{ fontSize: 28, marginBottom: 6 }}>{emoji}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={2}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export default function TripDetailScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string | string[] }>();
@@ -15,6 +60,8 @@ export default function TripDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation('trips');
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
   const { data: trip, isLoading, isError } = useTrip(tripId);
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
 
@@ -23,6 +70,12 @@ export default function TripDetailScreen() {
       setActiveTrip(tripRowToSnapshot(trip));
     }
   }, [trip, setActiveTrip]);
+
+  const isOwner = useMemo(() => {
+    return Boolean(trip?.trip_members.some((m) => m.user_id === userId && m.role === 'owner'));
+  }, [trip, userId]);
+
+  const lifecycleStep = trip ? tripLifecycleStep(trip.status) : 0;
 
   if (isLoading) {
     return (
@@ -52,7 +105,7 @@ export default function TripDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('detailBackA11y')}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
@@ -60,9 +113,88 @@ export default function TripDetailScreen() {
           {trip.name}
         </Text>
       </View>
-      <View style={{ paddingHorizontal: 20 }}>
-        <Text style={{ fontSize: 16, color: colors.inactive, lineHeight: 24 }}>{t('detailHubSubtitle')}</Text>
-      </View>
+
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
+        {isOwner ? (
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: lifecycleStep === 0 ? colors.primarySolid : colors.inactive,
+                }}
+              >
+                {t('statusPlanning')}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.border} />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: lifecycleStep === 1 ? colors.primarySolid : colors.inactive,
+                }}
+              >
+                {t('statusActive')}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.border} />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: lifecycleStep === 2 ? colors.primarySolid : colors.inactive,
+                }}
+              >
+                {t('statusCompleted')}
+              </Text>
+            </View>
+            {trip.status === 'active' ? (
+              <Pressable
+                onPress={() => router.push(`/trip/${trip.id}/finish`)}
+                style={{
+                  backgroundColor: colors.primarySolid,
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  alignItems: 'center',
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('finishTripA11y')}
+              >
+                <Text style={{ color: colors.onPrimary, fontSize: 16, fontWeight: '600' }}>{t('finishTrip')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        <Text style={{ fontSize: 16, color: colors.inactive, lineHeight: 24, marginBottom: 20 }}>{t('detailHubSubtitle')}</Text>
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <ActionCard
+            emoji="🔍"
+            label={t('actionExplore')}
+            a11y={t('actionExplore')}
+            onPress={() => router.push('/(tabs)')}
+          />
+          <ActionCard
+            emoji="🗺"
+            label={t('actionItinerary')}
+            a11y={t('actionItinerary')}
+            onPress={() => router.push('/(tabs)/itinerary')}
+          />
+          <ActionCard
+            emoji="💸"
+            label={t('actionExpenses')}
+            a11y={t('actionExpenses')}
+            onPress={() => router.push('/(tabs)/expenses')}
+          />
+          <ActionCard
+            emoji="👥"
+            label={t('actionMembers')}
+            a11y={t('actionMembers')}
+            onPress={() => router.push(`/trip/${trip.id}/members`)}
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 }

@@ -6,7 +6,7 @@ import type { Tables } from '../supabase/types';
 import { useAuth } from './useAuth';
 import { completedTripsCountKey } from './useProfile';
 
-export type TripMemberBrief = { user_id: string; role: string };
+export type TripMemberBrief = { user_id: string; role: string; joined_at: string };
 
 export type MemberProfileBrief = {
   id: string;
@@ -24,12 +24,12 @@ type TripRowWithMembers = Tables<'trips'> & {
   trip_members: TripMemberBrief[] | null;
 };
 
-type TripMembersRow = { trip_id: string; user_id: string; role: string };
+type TripMembersRow = { trip_id: string; user_id: string; role: string; joined_at: string };
 
 function normalizeTripRow(t: Tables<'trips'>): Tables<'trips'> {
   return {
     ...t,
-    status: t.status ?? 'active',
+    status: t.status ?? 'planning',
   };
 }
 
@@ -38,7 +38,7 @@ function attachMembersToTrips(trips: Tables<'trips'>[], members: TripMembersRow[
   const byTrip = new Map<string, TripMemberBrief[]>();
   for (const m of members ?? []) {
     const list = byTrip.get(m.trip_id) ?? [];
-    list.push({ user_id: m.user_id, role: m.role });
+    list.push({ user_id: m.user_id, role: m.role, joined_at: m.joined_at });
     byTrip.set(m.trip_id, list);
   }
   return trips.map((raw) => {
@@ -125,7 +125,7 @@ export function useMyTrips() {
       const tripIds = tripsList.map((x) => x.id);
       const { data: membersRows, error: membersError } = await supabase
         .from('trip_members')
-        .select('trip_id, user_id, role')
+        .select('trip_id, user_id, role, joined_at')
         .in('trip_id', tripIds);
 
       if (membersError) {
@@ -171,7 +171,7 @@ export function useTrip(tripId: string | undefined) {
 
       const { data: membersRows, error: membersError } = await supabase
         .from('trip_members')
-        .select('trip_id, user_id, role')
+        .select('trip_id, user_id, role, joined_at')
         .eq('trip_id', tripId);
 
       if (membersError) {
@@ -212,7 +212,7 @@ export function useCreateTrip() {
           start_date: input.start_date,
           end_date: input.end_date,
           created_by: userId,
-          status: 'active',
+          status: 'planning',
           updated_at: now,
         })
         .select('*')
@@ -296,6 +296,68 @@ export function useDeleteTrip() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
       void queryClient.invalidateQueries({ queryKey: completedTripsCountKey(userId) });
+    },
+  });
+}
+
+export type InviteMemberResult =
+  | { ok: true }
+  | { ok: false; code: 'user_not_found' | 'already_member' };
+
+export function useInviteTripMember() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async (vars: { tripId: string; email: string }): Promise<InviteMemberResult> => {
+      if (!supabase) {
+        throw new Error('Not signed in');
+      }
+      const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('invite-member', {
+        body: { trip_id: vars.tripId, email: vars.email.trim() },
+      });
+      if (error) {
+        throw error;
+      }
+      if (data?.error === 'user_not_found') {
+        return { ok: false, code: 'user_not_found' };
+      }
+      if (data?.error === 'already_member') {
+        return { ok: false, code: 'already_member' };
+      }
+      if (data?.success) {
+        return { ok: true };
+      }
+      throw new Error('invite_failed');
+    },
+    onSuccess: (result, vars) => {
+      if (result.ok) {
+        void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
+        void queryClient.invalidateQueries({ queryKey: tripDetailQueryKey(vars.tripId) });
+      }
+    },
+  });
+}
+
+export function useRemoveTripMember() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async (vars: { tripId: string; memberUserId: string }) => {
+      if (!supabase) {
+        throw new Error('Not signed in');
+      }
+      const { error } = await supabase.from('trip_members').delete().eq('trip_id', vars.tripId).eq('user_id', vars.memberUserId);
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: (_data, vars) => {
+      void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: tripDetailQueryKey(vars.tripId) });
     },
   });
 }

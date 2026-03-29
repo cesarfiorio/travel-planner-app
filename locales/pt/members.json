@@ -1,0 +1,19 @@
+{
+  "screenTitle": "Members",
+  "inviteSectionTitle": "Invite",
+  "inviteEmailPlaceholder": "Email address",
+  "sendInvite": "Send Invite",
+  "inviteSent": "Invitation sent",
+  "userNotFound": "No user found with that email.",
+  "alreadyMember": "That person is already on this trip.",
+  "inviteFailed": "Could not send the invitation.",
+  "removeMemberA11y": "Remove member",
+  "ownerBadgeA11y": "Trip owner",
+  "joinedOn": "Joined {{date}}",
+  "roleOwner": "Owner",
+  "roleMember": "Member",
+  "unknownMember": "Member",
+  "removeTitle": "Remove member",
+  "removeMessage": "Remove {{name}} from this trip?",
+  "removeConfirm": "Remove"
+}
