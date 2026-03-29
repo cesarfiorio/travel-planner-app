@@ -50,6 +50,15 @@ export default function NewTripScreen() {
   const [showStart, setShowStart] = useState(false);
   const [showEnd, setShowEnd] = useState(false);
 
+  const openStartPicker = () => {
+    setShowEnd(false);
+    setShowStart(true);
+  };
+  const openEndPicker = () => {
+    setShowStart(false);
+    setShowEnd(true);
+  };
+
   const locale =
     i18n.language.split('-')[0] === 'pt'
       ? 'pt-BR'
@@ -89,6 +98,12 @@ export default function NewTripScreen() {
     );
   };
 
+  const iosPickerOpen = Platform.OS === 'ios' && (showStart || showEnd);
+  const scrollBottomPad =
+    Platform.OS === 'ios'
+      ? Math.max(insets.bottom, 12) + (iosPickerOpen ? 58 : 96)
+      : 40;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -104,12 +119,12 @@ export default function NewTripScreen() {
           >
             <Text style={{ fontSize: 17, fontWeight: '600', color: colors.primary }}>{t('trips:close')}</Text>
           </Pressable>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{t('trips:newTitle')}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>{t('trips:newTitle')}</Text>
           <View style={{ width: 48 }} />
         </View>
       </View>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: scrollBottomPad }}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.label}>{t('trips:fieldTripName')}</Text>
@@ -129,7 +144,7 @@ export default function NewTripScreen() {
           style={styles.input}
         />
         <Text style={styles.label}>{t('trips:fieldStartDate')}</Text>
-        <Pressable onPress={() => setShowStart(true)} style={styles.dateBtn}>
+        <Pressable onPress={openStartPicker} style={styles.dateBtn}>
           <Text style={styles.dateBtnText}>{startDate.toLocaleDateString(locale)}</Text>
         </Pressable>
         {showStart ? (
@@ -147,14 +162,9 @@ export default function NewTripScreen() {
             }}
           />
         ) : null}
-        {Platform.OS === 'ios' && showStart ? (
-          <Pressable onPress={() => setShowStart(false)} style={{ marginBottom: 12 }}>
-            <Text style={{ color: colors.primary, fontWeight: '600' }}>{t('common:save')}</Text>
-          </Pressable>
-        ) : null}
 
         <Text style={styles.label}>{t('trips:fieldEndDate')}</Text>
-        <Pressable onPress={() => setShowEnd(true)} style={styles.dateBtn}>
+        <Pressable onPress={openEndPicker} style={styles.dateBtn}>
           <Text style={styles.dateBtnText}>{endDate.toLocaleDateString(locale)}</Text>
         </Pressable>
         {showEnd ? (
@@ -173,31 +183,100 @@ export default function NewTripScreen() {
             }}
           />
         ) : null}
-        {Platform.OS === 'ios' && showEnd ? (
-          <Pressable onPress={() => setShowEnd(false)} style={{ marginBottom: 12 }}>
-            <Text style={{ color: colors.primary, fontWeight: '600' }}>{t('common:save')}</Text>
+
+        {Platform.OS === 'android' ? (
+          <Pressable
+            onPress={submit}
+            disabled={createTrip.isPending}
+            style={({ pressed }) => ({
+              marginTop: 24,
+              paddingVertical: 16,
+              borderRadius: 12,
+              backgroundColor: '#EA580C',
+              alignItems: 'center',
+              borderWidth: 2,
+              borderColor: '#C2410C',
+              opacity: createTrip.isPending ? 0.7 : pressed ? 0.92 : 1,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 3,
+              elevation: 4,
+            })}
+          >
+            {createTrip.isPending ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '800' }}>{t('trips:createNewTripBanner')}</Text>
+            )}
           </Pressable>
         ) : null}
-
-        <Pressable
-          onPress={submit}
-          disabled={createTrip.isPending}
-          style={({ pressed }) => ({
-            marginTop: 24,
-            paddingVertical: 16,
-            borderRadius: 12,
-            backgroundColor: colors.primary,
-            alignItems: 'center',
-            opacity: createTrip.isPending ? 0.7 : pressed ? 0.9 : 1,
-          })}
-        >
-          {createTrip.isPending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>{t('trips:submitCreate')}</Text>
-          )}
-        </Pressable>
       </ScrollView>
+
+      {Platform.OS === 'ios' ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: 20,
+            paddingTop: iosPickerOpen ? 8 : 12,
+            paddingBottom: Math.max(insets.bottom, 12) + 10,
+            backgroundColor: colors.background,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 4,
+            elevation: 10,
+          }}
+        >
+          {iosPickerOpen ? (
+            <Pressable
+              onPress={() => {
+                setShowStart(false);
+                setShowEnd(false);
+              }}
+              style={({ pressed }) => ({
+                alignSelf: 'center',
+                paddingVertical: 16,
+                paddingHorizontal: 32,
+                opacity: pressed ? 0.75 : 1,
+              })}
+              accessibilityRole="button"
+              accessibilityLabel={t('common:save')}
+            >
+              <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 18 }}>{t('common:save')}</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={submit}
+              disabled={createTrip.isPending}
+              style={({ pressed }) => ({
+                paddingVertical: 16,
+                borderRadius: 12,
+                backgroundColor: '#EA580C',
+                borderWidth: 2,
+                borderColor: '#C2410C',
+                alignItems: 'center',
+                opacity: createTrip.isPending ? 0.7 : pressed ? 0.9 : 1,
+              })}
+              accessibilityRole="button"
+              accessibilityLabel={t('trips:createNewTripBanner')}
+            >
+              {createTrip.isPending ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '800', textAlign: 'center' }}>
+                  {t('trips:createNewTripBanner')}
+                </Text>
+              )}
+            </Pressable>
+          )}
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }

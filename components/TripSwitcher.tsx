@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../constants/colors';
 import { useMyTrips } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
+import { sortTripsForHome } from '../lib/trips/tripUi';
 
 export function TripSwitcher() {
   const { t } = useTranslation('trips');
@@ -15,13 +16,14 @@ export function TripSwitcher() {
   const activeTrip = useAppStore((s) => s.activeTrip);
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
   const [open, setOpen] = useState(false);
+  const sortedTrips = useMemo(() => sortTripsForHome(trips), [trips]);
 
   const label =
     activeTrip?.destination_label?.trim() ||
     activeTrip?.name?.trim() ||
     t('switcherLabel');
 
-  if (isLoading || trips.length === 0) {
+  if (isLoading || sortedTrips.length === 0) {
     return null;
   }
 
@@ -63,7 +65,7 @@ export function TripSwitcher() {
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <Text style={styles.sheetTitle}>{t('switchTripTitle')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 360 }}>
-              {trips.map((trip) => {
+              {sortedTrips.map((trip) => {
                 const selected = trip.id === activeTrip?.id;
                 const rowLabel = trip.destination_label?.trim() || trip.name;
                 return (

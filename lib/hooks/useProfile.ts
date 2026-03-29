@@ -4,6 +4,7 @@ import { formatErrorMessage } from '../formatError';
 import { i18n } from '../i18n';
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Tables } from '../supabase/types';
+import { deriveTripUiStatus } from '../trips/tripUi';
 
 import { useAuth } from './useAuth';
 
@@ -65,17 +66,16 @@ export function useCompletedTripsCount() {
         return 0;
       }
 
-      const { count, error: countError } = await supabase
+      const { data: tripRows, error: tripsError } = await supabase
         .from('trips')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'completed')
+        .select('id, status, start_date, end_date')
         .in('id', tripIds);
 
-      if (countError) {
-        throw countError;
+      if (tripsError) {
+        throw tripsError;
       }
 
-      return count ?? 0;
+      return (tripRows ?? []).filter((row) => deriveTripUiStatus(row) === 'completed').length;
     },
   });
 }

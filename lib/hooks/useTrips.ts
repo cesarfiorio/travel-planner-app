@@ -4,6 +4,7 @@ import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Tables } from '../supabase/types';
 
 import { useAuth } from './useAuth';
+import { completedTripsCountKey } from './useProfile';
 
 export type TripMemberBrief = { user_id: string; role: string };
 
@@ -233,6 +234,7 @@ export function useCreateTrip() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: completedTripsCountKey(userId) });
     },
   });
 }
@@ -270,6 +272,7 @@ export function useUpdateTrip() {
     onSuccess: (_data, vars) => {
       void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
       void queryClient.invalidateQueries({ queryKey: tripDetailQueryKey(vars.id) });
+      void queryClient.invalidateQueries({ queryKey: completedTripsCountKey(userId) });
     },
   });
 }
@@ -292,6 +295,7 @@ export function useDeleteTrip() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: completedTripsCountKey(userId) });
     },
   });
 }

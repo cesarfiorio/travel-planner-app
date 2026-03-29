@@ -31,7 +31,7 @@ export function EmptyTrips({ onCreatePress }: Props) {
           marginBottom: 24,
         }}
       >
-        <Ionicons name="map-outline" size={56} color={colors.primary} />
+        <Ionicons name="map-outline" size={56} color={colors.primarySolid} />
       </View>
       <Text
         style={{
@@ -47,27 +47,49 @@ export function EmptyTrips({ onCreatePress }: Props) {
       <Text
         style={{
           fontSize: 16,
-          color: colors.inactive,
+          color: colors.text,
           textAlign: 'center',
           lineHeight: 24,
-          marginBottom: 32,
+          marginBottom: 12,
+          opacity: 0.85,
         }}
       >
         {t('emptySubtitle')}
       </Text>
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: '600',
+          color: colors.primarySolid,
+          textAlign: 'center',
+          marginBottom: 20,
+        }}
+      >
+        {t('emptyTapBelow')}
+      </Text>
       <Pressable
         onPress={onCreatePress}
         style={({ pressed }) => ({
-          paddingVertical: 14,
-          paddingHorizontal: 28,
-          borderRadius: 12,
-          backgroundColor: colors.primary,
-          opacity: pressed ? 0.9 : 1,
+          minWidth: 260,
+          paddingVertical: 16,
+          paddingHorizontal: 32,
+          borderRadius: 14,
+          backgroundColor: colors.primarySolid,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.92 : 1,
+          borderWidth: 2,
+          borderColor: '#7C2D12',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+          elevation: 6,
         })}
         accessibilityRole="button"
         accessibilityLabel={t('emptyCta')}
       >
-        <Text style={{ color: '#fff', fontSize: 17, fontWeight: '600' }}>{t('emptyCta')}</Text>
+        <Text style={{ color: colors.onPrimary, fontSize: 18, fontWeight: '700' }}>{t('emptyCta')}</Text>
       </Pressable>
     </View>
   );

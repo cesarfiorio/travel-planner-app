@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,6 +20,13 @@ import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useMyTrips } from '../../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../../lib/store/appStore';
+import { pickFeaturedTripForHome, sortTripsForHome } from '../../lib/trips/tripUi';
+
+/** Space reserved above the FAB so list content can scroll past it. */
+const SCROLL_END_PADDING = 88;
+
+/** Explore FAB fill — vivid orange (matches pill / brand reference). */
+const FAB_BACKGROUND = '#FF6B35';
 
 export default function ExploreHomeScreen() {
   const { t } = useTranslation(['trips', 'common']);
@@ -31,28 +38,37 @@ export default function ExploreHomeScreen() {
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
   const userId = user?.id ?? '';
 
+  /** Distance from the bottom of the tab scene (already above the nav bar) + home-indicator safe area. */
+  const fabBottom = useMemo(() => Math.max(insets.bottom, 8) + 14, [insets.bottom]);
+
+  const sortedTrips = useMemo(() => sortTripsForHome(trips), [trips]);
+
   useEffect(() => {
-    if (!trips.length) {
+    if (!sortedTrips.length) {
       return;
     }
-    if (activeTrip && !trips.some((x) => x.id === activeTrip.id)) {
+    if (activeTrip && !sortedTrips.some((x) => x.id === activeTrip.id)) {
       setActiveTrip(null);
       return;
     }
-    if (!activeTrip && trips.length > 0) {
-      setActiveTrip(tripRowToSnapshot(trips[0]));
+    const featured = pickFeaturedTripForHome(sortedTrips, activeTrip?.id ?? null);
+    if (!featured) {
+      return;
     }
-  }, [trips, activeTrip, setActiveTrip]);
+    if (!activeTrip || activeTrip.id !== featured.id) {
+      setActiveTrip(tripRowToSnapshot(featured));
+    }
+  }, [sortedTrips, activeTrip, setActiveTrip]);
 
   const { active, others } = useMemo(() => {
-    if (!trips.length) {
-      return { active: null as (typeof trips)[0] | null, others: [] as typeof trips };
+    if (!sortedTrips.length) {
+      return { active: null as (typeof sortedTrips)[0] | null, others: [] as typeof sortedTrips };
     }
-    const id = activeTrip?.id;
-    const a = id ? trips.find((x) => x.id === id) ?? trips[0] : trips[0];
-    const rest = trips.filter((x) => x.id !== a.id);
+    const featured = pickFeaturedTripForHome(sortedTrips, activeTrip?.id ?? null);
+    const a = featured ?? sortedTrips[0];
+    const rest = sortedTrips.filter((x) => x.id !== a.id);
     return { active: a, others: rest };
-  }, [trips, activeTrip?.id]);
+  }, [sortedTrips, activeTrip?.id]);
 
   if (isLoading) {
     return (
@@ -70,9 +86,9 @@ export default function ExploreHomeScreen() {
         </Text>
         <Pressable
           onPress={() => void refetch()}
-          style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: colors.primary, borderRadius: 12 }}
+          style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: colors.primarySolid, borderRadius: 12 }}
         >
-          <Text style={{ color: '#fff', fontWeight: '600' }}>{t('common:retry')}</Text>
+          <Text style={{ color: colors.onPrimary, fontWeight: '600' }}>{t('common:retry')}</Text>
         </Pressable>
       </View>
     );
@@ -80,38 +96,17 @@ export default function ExploreHomeScreen() {
 
   if (!trips.length) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
-        <EmptyTrips onCreatePress={() => router.push('/trip/new')} />
-        <Pressable
-          onPress={() => router.push('/trip/new')}
-          style={({ pressed }) => ({
-            position: 'absolute',
-            right: 20,
-            bottom: Math.max(insets.bottom, 20) + 56,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: colors.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.9 : 1,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
-            elevation: 4,
-          })}
-          accessibilityRole="button"
-          accessibilityLabel={t('trips:fabCreateA11y')}
-        >
-          <Ionicons name="add" size={28} color="#fff" />
-        </Pressable>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8, overflow: 'visible' }}>
+        <View style={{ flex: 1 }}>
+          <EmptyTrips onCreatePress={() => router.push('/trip/new')} />
+        </View>
+        <FabOverlay onPress={() => router.push('/trip/new')} bottom={fabBottom} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8, overflow: 'visible' }}>
       <Text
         style={{
           fontSize: 28,
@@ -124,72 +119,119 @@ export default function ExploreHomeScreen() {
         {t('trips:homeTitle')}
       </Text>
       <TripSwitcher />
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.primary} />
-        }
-      >
-        {active ? (
-          <View style={{ marginBottom: 8 }}>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '700',
-                color: colors.primary,
-                marginBottom: 8,
-                marginLeft: 4,
-              }}
-            >
-              {t('trips:activeTrip')}
-            </Text>
-            <TripCard trip={active} variant="highlighted" currentUserId={userId} />
-          </View>
-        ) : null}
-        {others.length > 0 ? (
-          <>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '700',
-                color: colors.inactive,
-                marginBottom: 8,
-                marginLeft: 4,
-                marginTop: 8,
-              }}
-            >
-              {t('trips:otherTrips')}
-            </Text>
-            {others.map((trip) => (
-              <TripCard key={trip.id} trip={trip} variant="default" currentUserId={userId} />
-            ))}
-          </>
-        ) : null}
-      </ScrollView>
-      <Pressable
-        onPress={() => router.push('/trip/new')}
-        style={({ pressed }) => ({
+      {/* flex:1 region: scroll content + separate overlay layer so the FAB is never painted under ScrollView */}
+      <View style={{ flex: 1, position: 'relative' }} collapsable={false}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: SCROLL_END_PADDING }}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.primary} />
+          }
+        >
+          {active ? (
+            <View style={{ marginBottom: 8 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: colors.primary,
+                  marginBottom: 8,
+                  marginLeft: 4,
+                }}
+              >
+                {t('trips:activeTrip')}
+              </Text>
+              <TripCard trip={active} variant="highlighted" currentUserId={userId} />
+            </View>
+          ) : null}
+          {others.length > 0 ? (
+            <>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: colors.inactive,
+                  marginBottom: 8,
+                  marginLeft: 4,
+                  marginTop: 8,
+                }}
+              >
+                {t('trips:otherTrips')}
+              </Text>
+              {others.map((trip) => (
+                <TripCard key={trip.id} trip={trip} variant="default" currentUserId={userId} />
+              ))}
+            </>
+          ) : null}
+        </ScrollView>
+        <FabOverlay onPress={() => router.push('/trip/new')} bottom={fabBottom} />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Floating action button (FAB): pill, fixed bottom-right of the tab scene, above the bottom navigation bar.
+ * pointerEvents="box-none" on the overlay so the list still scrolls; only the Pressable captures taps.
+ */
+function FabOverlay({ onPress, bottom }: { onPress: () => void; bottom: number }) {
+  const { t } = useTranslation('trips');
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        zIndex: 9999,
+      }}
+      collapsable={false}
+    >
+      <View
+        pointerEvents="box-none"
+        style={{
           position: 'absolute',
-          right: 20,
-          bottom: Math.max(insets.bottom, 20) + 56,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: colors.primary,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: pressed ? 0.9 : 1,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-          elevation: 4,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('trips:fabCreateA11y')}
+          right: 16,
+          bottom,
+        }}
+        collapsable={false}
       >
-        <Ionicons name="add" size={28} color="#fff" />
-      </Pressable>
+        {/* Outer shell: overflow hidden + borderRadius guarantees a true pill on all platforms. */}
+        <View
+          style={{
+            alignSelf: 'flex-end',
+            borderRadius: 360,
+            overflow: 'hidden',
+            backgroundColor: colors.primary,
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.38,
+            shadowRadius: 20,
+            elevation: Platform.OS === 'android' ? 12 : 0,
+          }}
+          collapsable={false}
+        >
+          <Pressable
+            onPress={onPress}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              backgroundColor: FAB_BACKGROUND,
+              opacity: pressed ? 0.9 : 1,
+            })}
+            accessibilityRole="button"
+            accessibilityLabel={t('fabCreateA11y')}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 17, paddingHorizontal: 10, paddingVertical: 10 }}>New Trip</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }

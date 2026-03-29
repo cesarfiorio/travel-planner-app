@@ -132,6 +132,16 @@ export function TripCard({ trip, variant, currentUserId }: Props) {
       ? `${new Date(trip.start_date + 'T12:00:00').toLocaleDateString(locale)} – ${new Date(trip.end_date + 'T12:00:00').toLocaleDateString(locale)}`
       : '';
 
+  const trimmedName = trip.name?.trim() ?? '';
+  const trimmedDest = trip.destination_label?.trim() ?? '';
+  const titleText = trimmedName || trimmedDest || t('trips:detailTitle');
+  const subtitleText =
+    trimmedName && trimmedDest
+      ? trimmedDest
+      : trimmedName
+        ? trimmedDest || t('trips:noDestination')
+        : null;
+
   const memberCount = trip.trip_members.length;
   const overflow = Math.max(0, trip.memberProfiles.length - 4);
 
@@ -219,14 +229,21 @@ export function TripCard({ trip, variant, currentUserId }: Props) {
         })}
         accessibilityRole="button"
       >
-        <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 96 }} />
+        <LinearGradient
+          colors={[c1, c2]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ height: 96, minHeight: 96, width: '100%' }}
+        />
         <View style={{ padding: 16, backgroundColor: '#fff' }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }} numberOfLines={2}>
-            {trip.name}
+            {titleText}
           </Text>
-          <Text style={{ fontSize: 15, color: colors.inactive, marginTop: 4 }} numberOfLines={2}>
-            {trip.destination_label?.trim() || t('trips:noDestination')}
-          </Text>
+          {subtitleText ? (
+            <Text style={{ fontSize: 15, color: colors.inactive, marginTop: 4 }} numberOfLines={2}>
+              {subtitleText}
+            </Text>
+          ) : null}
           {dateRange ? (
             <Text style={{ fontSize: 13, color: colors.inactive, marginTop: 8 }}>{dateRange}</Text>
           ) : null}
