@@ -277,7 +277,13 @@ export default function ExpensesScreen() {
         <TripSwitcher variant="icon" />
       </View>
 
-      <PlanGate requires="explorer" fallback={<LockedBanner message={t('pdfLockedMessage')} />}>{null}</PlanGate>
+      <PlanGate
+        requires="explorer"
+        feature="pdfExport"
+        fallback={<LockedBanner message={t('pdfLockedMessage')} featureId="pdfExport" />}
+      >
+        {null}
+      </PlanGate>
 
       {isPending && expenses.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

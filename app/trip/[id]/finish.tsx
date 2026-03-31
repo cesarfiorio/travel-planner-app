@@ -25,10 +25,9 @@ import { formatErrorMessage } from '../../../lib/formatError';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useFinishTrip, type MemoryMood } from '../../../lib/hooks/useFinishTrip';
 import { useItinerary, type ItineraryPlaceVm } from '../../../lib/hooks/useItinerary';
-import { useProfile } from '../../../lib/hooks/useProfile';
+import { useSubscription } from '../../../lib/hooks/useSubscription';
 import { useTripExpenses } from '../../../lib/hooks/useExpenses';
 import { useTrip } from '../../../lib/hooks/useTrips';
-import { hasPlanAccess } from '../../../lib/planAccess';
 import { firstPhotoReference } from '../../../lib/places/firstPhotoRef';
 import { formatCurrency } from '../../../lib/utils/formatCurrency';
 
@@ -51,10 +50,8 @@ export default function FinishTripScreen() {
   const { sections } = useItinerary(tripId);
   const itinerary = useMemo(() => sections.flatMap((s) => s.data), [sections]);
   const { data: expenses = [] } = useTripExpenses(tripId);
-  const { data: profile } = useProfile();
   const finishMut = useFinishTrip();
-
-  const explorer = hasPlanAccess(profile?.plan, 'explorer');
+  const { isExplorer: explorer } = useSubscription();
 
   const [shareOn, setShareOn] = useState(true);
   const [tip, setTip] = useState('');
@@ -317,7 +314,11 @@ export default function FinishTripScreen() {
         ) : null}
 
         <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, marginBottom: 10 }}>{tm('sectionTitle')}</Text>
-        <PlanGate requires="explorer" fallback={<LockedBanner message={tm('lockedMessage')} />}>
+        <PlanGate
+          requires="explorer"
+          feature="finishMemory"
+          fallback={<LockedBanner message={tm('lockedMessage')} featureId="finishMemory" />}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text style={{ flex: 1, fontSize: 15, color: colors.text, marginRight: 12 }}>{tm('createToggle')}</Text>
             <Switch value={memoryOn} onValueChange={setMemoryOn} />

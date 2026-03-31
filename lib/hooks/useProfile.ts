@@ -124,6 +124,7 @@ export function useUpdateProfileName() {
             display_name: trimmed,
             avatar_url: null,
             plan: 'free',
+            plan_expires_at: null,
             created_at: nowIso(),
             updated_at: nowIso(),
           } as ProfileRow;

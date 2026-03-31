@@ -3,6 +3,7 @@
   "planFree": "[FR] Free plan",
   "planPlus": "[FR] Plus plan",
   "planPro": "[FR] Pro plan",
+  "planExplorer": "Explorer",
   "travelerFallback": "[FR] Traveler",
   "invalidNameTitle": "[FR] Invalid name",
   "invalidNameMessage": "[FR] Name cannot be empty.",

@@ -18,6 +18,7 @@ import { TripSwitcher } from '../../components/TripSwitcher';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../../lib/hooks/useSubscription';
 import { useMyTrips } from '../../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../../lib/store/appStore';
 import { pickFeaturedTripForHome, sortTripsForHome } from '../../lib/trips/tripUi';
@@ -31,9 +32,21 @@ export default function HomeTripsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: trips = [], isLoading, isError, error, refetch, isRefetching } = useMyTrips();
+  const { isExplorer } = useSubscription();
   const activeTrip = useAppStore((s) => s.activeTrip);
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
   const userId = user?.id ?? '';
+
+  const ownedTripCount = useMemo(() => trips.filter((t) => t.created_by === userId).length, [trips, userId]);
+  const atTripLimit = !isExplorer && ownedTripCount >= FREE_OWNER_TRIP_LIMIT;
+
+  const goNewTrip = () => {
+    if (atTripLimit) {
+      router.push('/(stack)/paywall');
+      return;
+    }
+    router.push('/trip/new');
+  };
 
   const fabBottom = useMemo(() => Math.max(insets.bottom, 8) + 14, [insets.bottom]);
   const sortedTrips = useMemo(() => sortTripsForHome(trips), [trips]);
@@ -93,9 +106,9 @@ export default function HomeTripsScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8, overflow: 'visible' }}>
         <View style={{ flex: 1 }}>
-          <EmptyTrips onCreatePress={() => router.push('/trip/new')} />
+          <EmptyTrips onCreatePress={goNewTrip} />
         </View>
-        <FabOverlay onPress={() => router.push('/trip/new')} bottom={fabBottom} />
+        <FabOverlay onPress={goNewTrip} bottom={fabBottom} />
       </View>
     );
   }
@@ -158,7 +171,7 @@ export default function HomeTripsScreen() {
             </>
           ) : null}
         </ScrollView>
-        <FabOverlay onPress={() => router.push('/trip/new')} bottom={fabBottom} />
+        <FabOverlay onPress={goNewTrip} bottom={fabBottom} />
       </View>
     </View>
   );

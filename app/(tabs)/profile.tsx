@@ -38,6 +38,9 @@ export default function ProfileScreen() {
     if (p === 'pro') {
       return t('profile:planPro');
     }
+    if (p === 'explorer') {
+      return t('profile:planExplorer');
+    }
     return t('profile:planFree');
   };
 
@@ -269,7 +272,7 @@ export default function ProfileScreen() {
       </View>
 
       <Pressable
-        onPress={() => router.push('/paywall')}
+        onPress={() => router.push('/(stack)/paywall')}
         style={({ pressed }) => ({
           marginTop: 20,
           paddingVertical: 14,

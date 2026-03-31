@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       community_route_likes: {
         Row: {
           created_at: string
@@ -332,6 +350,7 @@ export type Database = {
           full_name: string | null
           id: string
           plan: string
+          plan_expires_at: string | null
           updated_at: string
         }
         Insert: {
@@ -341,6 +360,7 @@ export type Database = {
           full_name?: string | null
           id: string
           plan?: string
+          plan_expires_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -350,6 +370,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           plan?: string
+          plan_expires_at?: string | null
           updated_at?: string
         }
         Relationships: []

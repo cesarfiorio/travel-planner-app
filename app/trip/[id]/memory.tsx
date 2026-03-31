@@ -27,7 +27,6 @@ import { getPlacePhotoSource } from '../../../lib/api/placePhoto';
 import { formatErrorMessage } from '../../../lib/formatError';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { usePlaceById } from '../../../lib/hooks/usePlaceDetail';
-import { useProfile } from '../../../lib/hooks/useProfile';
 import {
   useAddJournalEntry,
   useDeleteJournalEntry,
@@ -37,7 +36,6 @@ import {
 } from '../../../lib/hooks/useTripMemory';
 import { useTripExpenses } from '../../../lib/hooks/useExpenses';
 import { useTrip } from '../../../lib/hooks/useTrips';
-import { hasPlanAccess } from '../../../lib/planAccess';
 import { firstPhotoReference } from '../../../lib/places/firstPhotoRef';
 import { formatCurrency } from '../../../lib/utils/formatCurrency';
 
@@ -69,9 +67,6 @@ export default function TripMemoryScreen() {
   const { user, session } = useAuth();
   const userId = user?.id ?? '';
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
-  const { data: profile } = useProfile();
-  const explorer = hasPlanAccess(profile?.plan, 'explorer');
-
   const { data: trip, isLoading: tripLoading } = useTrip(tripId);
   const { data: expenses = [] } = useTripExpenses(tripId);
   const { data: memory, isLoading: memLoading } = useTripMemoryByTripId(tripId);
@@ -221,7 +216,11 @@ export default function TripMemoryScreen() {
             <Text style={{ fontSize: 13, color: colors.inactive, marginTop: 4 }}>{tm('tapToCopy')}</Text>
           </Pressable>
 
-          <PlanGate requires="explorer" fallback={<LockedBanner message={tm('upgradeShareJournal')} />}>
+          <PlanGate
+            requires="explorer"
+            feature="shareJournal"
+            fallback={<LockedBanner message={tm('upgradeShareJournal')} featureId="shareJournal" />}
+          >
             <>
             <View style={{ marginBottom: 8 }}>
               <ViewShot ref={shotRef} options={{ format: 'png', quality: 0.95 }} style={{ borderRadius: 16, overflow: 'hidden' }}>

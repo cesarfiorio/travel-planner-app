@@ -18,7 +18,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
-import { useCreateTrip } from '../../lib/hooks/useTrips';
+import { useAuth } from '../../lib/hooks/useAuth';
+import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../../lib/hooks/useSubscription';
+import { useCreateTrip, useMyTrips } from '../../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../../lib/store/appStore';
 
 function toYmd(d: Date): string {
@@ -36,6 +38,10 @@ export default function NewTripScreen() {
   const { t, i18n } = useTranslation(['trips', 'common']);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
+  const { data: trips = [] } = useMyTrips();
+  const { isExplorer } = useSubscription();
   const createTrip = useCreateTrip();
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
 
@@ -70,6 +76,14 @@ export default function NewTripScreen() {
     const trimmedName = name.trim();
     if (!trimmedName) {
       Alert.alert(t('common:somethingWentWrong'), t('trips:errorNameRequired'));
+      return;
+    }
+    const owned = trips.filter((tr) => tr.created_by === userId).length;
+    if (!isExplorer && owned >= FREE_OWNER_TRIP_LIMIT) {
+      Alert.alert(t('trips:tripLimitTitle'), t('trips:tripLimitMessage'), [
+        { text: t('common:cancel'), style: 'cancel' },
+        { text: t('trips:tripLimitUpgrade'), onPress: () => router.push('/(stack)/paywall') },
+      ]);
       return;
     }
     const start = stripTime(startDate);
