@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 
@@ -20,8 +21,16 @@ type PurchasesModule = typeof import('react-native-purchases').default;
 
 let revenueCatConfigured = false;
 
-function loadPurchases(): PurchasesModule | null {
+/** RevenueCat needs a dev/standalone build with the native SDK; Expo Go uses a broken “browser” stub. */
+function isRevenueCatNativeAvailable(): boolean {
   if (Platform.OS === 'web') {
+    return false;
+  }
+  return Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+}
+
+function loadPurchases(): PurchasesModule | null {
+  if (!isRevenueCatNativeAvailable()) {
     return null;
   }
   try {
