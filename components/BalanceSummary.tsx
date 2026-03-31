@@ -23,6 +23,9 @@ type BalanceSummaryProps = {
   memberIds: string[];
   /** When false, net is 0 because there is nothing to split yet — not “all settled”. */
   hasExpenses: boolean;
+  onSettleDebt?: (debt: SimplifiedDebt) => void;
+  /** When matching `debt.from`, that row shows a settling state. */
+  settlingDebtorId?: string | null;
 };
 
 export function BalanceSummary({
@@ -33,6 +36,8 @@ export function BalanceSummary({
   currentUserId,
   memberIds,
   hasExpenses,
+  onSettleDebt,
+  settlingDebtorId,
 }: BalanceSummaryProps) {
   const { t } = useTranslation('expenses');
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
@@ -83,7 +88,7 @@ export function BalanceSummary({
               marginBottom: 4,
             }}
           >
-            Csa
+            {label}
           </Text>
         );
       })}
@@ -103,6 +108,8 @@ export function BalanceSummary({
               toName={d.to === currentUserId ? t('you') : displayName(profileById.get(d.to), t('memberFallback'))}
               currency={currency}
               currentUserId={currentUserId}
+              onSettlePress={onSettleDebt}
+              isSettling={settlingDebtorId === d.from}
             />
           ))}
         </>

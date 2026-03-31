@@ -12,6 +12,8 @@ export type SplitForBalance = {
   expense_id: string;
   user_id: string;
   amount_owed_cents: number;
+  /** When true, that share is treated as paid back to the payer for balance math. */
+  is_settled?: boolean | null;
 };
 
 export type SimplifiedDebt = { from: string; to: string; cents: number };
@@ -59,10 +61,14 @@ export function calculateBalances(
   }
   for (const e of expenses) {
     const rows = byExpense.get(e.id) ?? [];
-    for (const row of rows) {
-      balances[row.user_id] = (balances[row.user_id] ?? 0) - row.amount_owed_cents;
-    }
     balances[e.paid_by_user_id] = (balances[e.paid_by_user_id] ?? 0) + e.amount_cents;
+    for (const row of rows) {
+      if (row.is_settled) {
+        balances[e.paid_by_user_id] = (balances[e.paid_by_user_id] ?? 0) - row.amount_owed_cents;
+      } else {
+        balances[row.user_id] = (balances[row.user_id] ?? 0) - row.amount_owed_cents;
+      }
+    }
   }
   return balances;
 }

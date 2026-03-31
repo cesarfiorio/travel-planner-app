@@ -31,7 +31,14 @@ async function fetchTripExpenses(tripId: string): Promise<ExpenseWithSplits[]> {
     const raw = row as ExpenseWithSplits & { expense_splits?: Tables<'expense_splits'> | Tables<'expense_splits'>[] };
     const splits = raw.expense_splits;
     const list = Array.isArray(splits) ? splits : splits ? [splits] : [];
-    return { ...row, expense_splits: list };
+    return {
+      ...row,
+      expense_splits: list.map((s) => ({
+        ...s,
+        is_settled: s.is_settled ?? false,
+        settled_at: s.settled_at ?? null,
+      })),
+    };
   }) as ExpenseWithSplits[];
 }
 
@@ -102,6 +109,66 @@ export type AddExpenseInput = {
   paidByUserId: string;
   splits: { user_id: string; amount_owed_cents: number }[];
 };
+
+export type SettleDebtInput = {
+  expenseIds: string[];
+  debtorUserId: string;
+};
+
+export function useSettleDebt(tripId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: SettleDebtInput): Promise<void> => {
+      if (!supabase) {
+        throw new Error('Not configured');
+      }
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('expense_splits')
+        .update({ is_settled: true, settled_at: now })
+        .in('expense_id', input.expenseIds)
+        .eq('user_id', input.debtorUserId);
+      if (error) {
+        throw error;
+      }
+    },
+    onMutate: async (input) => {
+      if (!tripId) {
+        return { previous: undefined as ExpenseWithSplits[] | undefined };
+      }
+      await queryClient.cancelQueries({ queryKey: expensesQueryKey(tripId) });
+      const previous = queryClient.getQueryData<ExpenseWithSplits[]>(expensesQueryKey(tripId));
+      const now = new Date().toISOString();
+      if (previous) {
+        queryClient.setQueryData(
+          expensesQueryKey(tripId),
+          previous.map((e) =>
+            input.expenseIds.includes(e.id)
+              ? {
+                  ...e,
+                  expense_splits: (e.expense_splits ?? []).map((s) =>
+                    s.user_id === input.debtorUserId ? { ...s, is_settled: true, settled_at: now } : s,
+                  ),
+                }
+              : e,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _input, ctx) => {
+      if (tripId && ctx?.previous) {
+        queryClient.setQueryData(expensesQueryKey(tripId), ctx.previous);
+      }
+    },
+    onSuccess: () => {
+      if (tripId) {
+        void queryClient.invalidateQueries({ queryKey: expensesQueryKey(tripId) });
+      }
+    },
+  });
+}
 
 export function useAddExpense() {
   const queryClient = useQueryClient();

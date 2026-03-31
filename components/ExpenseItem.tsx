@@ -41,15 +41,17 @@ export function ExpenseItem({ expense, paidByProfile, profileById }: ExpenseItem
               : null;
 
   const splits = expense.expense_splits ?? [];
-  const splitPreview =
-    splits.length > 0
-      ? splits
-          .map((s) => {
-            const name = displayName(profileById.get(s.user_id), t('memberFallback'));
-            return `${name}: ${formatCurrency(s.amount_owed_cents, currency, locale)}`;
-          })
-          .join(' · ')
-      : null;
+
+  function settledDateLabel(iso: string | null | undefined): string {
+    if (!iso) {
+      return '';
+    }
+    try {
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(iso));
+    } catch {
+      return iso.slice(0, 10);
+    }
+  }
 
   return (
     <View
@@ -72,10 +74,42 @@ export function ExpenseItem({ expense, paidByProfile, profileById }: ExpenseItem
       {categoryKey ? (
         <Text style={{ fontSize: 13, color: colors.inactive, marginTop: 2 }}>{t(categoryKey)}</Text>
       ) : null}
-      {splitPreview ? (
-        <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 6 }} numberOfLines={3}>
-          {splitPreview}
-        </Text>
+      {splits.length > 0 ? (
+        <View style={{ marginTop: 8, gap: 6 }}>
+          {splits.map((s) => {
+            const name = displayName(profileById.get(s.user_id), t('memberFallback'));
+            const amt = formatCurrency(s.amount_owed_cents, currency, locale);
+            const settled = Boolean(s.is_settled) && s.amount_owed_cents > 0;
+            const when = settledDateLabel(s.settled_at);
+            return (
+              <View key={s.id} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: settled ? colors.inactive : colors.text,
+                    textDecorationLine: settled ? 'line-through' : undefined,
+                  }}
+                >
+                  {name}: {amt}
+                </Text>
+                {settled ? (
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                      borderRadius: 8,
+                      backgroundColor: '#E5E7EB',
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: colors.inactive }}>
+                      {t('settledBadge', { date: when })}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
       ) : null}
     </View>
   );

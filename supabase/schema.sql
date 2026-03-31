@@ -63,6 +63,8 @@ CREATE TABLE public.expense_splits (
   expense_id UUID NOT NULL REFERENCES public.expenses (id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
   amount_owed_cents BIGINT NOT NULL CHECK (amount_owed_cents >= 0),
+  is_settled BOOLEAN NOT NULL DEFAULT false,
+  settled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (expense_id, user_id)
 );

@@ -67,6 +67,30 @@ describe('calculateBalances', () => {
     expect(b['a']).toBe(50);
     expect(b['b']).toBe(-50);
   });
+
+  it('treats settled splits as repaid to payer', () => {
+    const expenses = [{ id: 'e1', paid_by_user_id: 'alice', amount_cents: 100 }];
+    const splits = [
+      { expense_id: 'e1', user_id: 'alice', amount_owed_cents: 50, is_settled: true },
+      { expense_id: 'e1', user_id: 'bob', amount_owed_cents: 50, is_settled: false },
+    ];
+    const b = calculateBalances(expenses, splits);
+    expect(b['alice']).toBe(50);
+    expect(b['bob']).toBe(-50);
+    const sum = Object.values(b).reduce((a, v) => a + v, 0);
+    expect(sum).toBe(0);
+  });
+
+  it('zero net when all shares settled', () => {
+    const expenses = [{ id: 'e1', paid_by_user_id: 'alice', amount_cents: 100 }];
+    const splits = [
+      { expense_id: 'e1', user_id: 'alice', amount_owed_cents: 50, is_settled: true },
+      { expense_id: 'e1', user_id: 'bob', amount_owed_cents: 50, is_settled: true },
+    ];
+    const b = calculateBalances(expenses, splits);
+    expect(b['alice'] ?? 0).toBe(0);
+    expect(b['bob'] ?? 0).toBe(0);
+  });
 });
 
 describe('simplifyDebts', () => {
