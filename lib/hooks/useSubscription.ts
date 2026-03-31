@@ -17,6 +17,14 @@ export const PRODUCT_MONTHLY = 'routeflow_explorer_monthly';
 /** Free tier: max trips the user can own as creator. */
 export const FREE_OWNER_TRIP_LIMIT = 1;
 
+/**
+ * When `EXPO_PUBLIC_DEV_GRANT_EXPLORER=1` and Metro `__DEV__` is true, treat the user as Explorer
+ * (gates + trip limit). No effect in release builds. Use in Expo Go / without RevenueCat.
+ */
+export function devGrantExplorerAccess(): boolean {
+  return __DEV__ && process.env.EXPO_PUBLIC_DEV_GRANT_EXPLORER === '1';
+}
+
 type PurchasesModule = typeof import('react-native-purchases').default;
 
 let revenueCatConfigured = false;
@@ -152,6 +160,9 @@ export function useSubscription() {
   const { data: profileRow } = useProfile();
 
   const isExplorer = useMemo(() => {
+    if (devGrantExplorerAccess()) {
+      return true;
+    }
     const active = customerInfoQuery.data?.entitlements.active[ENTITLEMENT_EXPLORER];
     if (active) {
       return true;
