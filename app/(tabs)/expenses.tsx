@@ -107,10 +107,32 @@ export default function ExpensesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8 }}>
-        <Text style={{ flex: 1, fontSize: 22, fontWeight: '800', color: colors.text }} numberOfLines={1}>
+       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 4, gap: 10}}>
+       <Text style={{ flex: 1, fontSize: 22, fontWeight: '800', color: colors.text}} numberOfLines={1}>
           {t('screenTitle')}
         </Text>
+        <Pressable
+          onPress={() => router.push(`/trip/${tripId}/add-expense`)}
+          hitSlop={8}
+          style={({ pressed }) => ({
+            position: 'absolute',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            paddingVertical: 10,
+            paddingHorizontal: 16,
+            borderRadius: 12,
+            backgroundColor: '#FFF3EC',
+            borderWidth: 1,
+            borderColor: colors.primarySolid,
+            opacity: pressed ? 0.88 : 1,
+          })}
+          accessibilityRole="button"
+          accessibilityLabel={t('addExpense')}
+        >
+          <Ionicons name="add-circle" size={28} color={colors.primarySolid} />
+        </Pressable>
         <TripSwitcher variant="icon" />
       </View>
 
@@ -142,11 +164,12 @@ export default function ExpensesScreen() {
                 currency={currency}
                 currentUserId={uid}
                 memberIds={memberIds}
+                hasExpenses={expenses.length > 0}
               />
             ) : null
           }
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', color: colors.inactive, paddingVertical: 32, paddingHorizontal: 24 }}>
+            <Text style={{ textAlign: 'center', color: colors.inactive, paddingVertical: 38, paddingHorizontal: 28 }}>
               {t('emptyList')}
             </Text>
           }
@@ -161,30 +184,7 @@ export default function ExpensesScreen() {
         />
       )}
 
-      <Pressable
-        onPress={() => router.push(`/trip/${tripId}/add-expense`)}
-        style={({ pressed }) => ({
-          position: 'absolute',
-          right: 20,
-          bottom: Math.max(insets.bottom, 16) + 8,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: colors.primarySolid,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: pressed ? 0.9 : 1,
-          elevation: 4,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('addExpense')}
-      >
-        <Ionicons name="add" size={32} color={colors.onPrimary} />
-      </Pressable>
+
     </View>
   );
 }

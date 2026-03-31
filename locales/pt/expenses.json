@@ -17,6 +17,8 @@
   "netNegative": "[PT] You owe {{amount}}",
   "netZero": "[PT] You are settled up",
   "addExpense": "[PT] Add expense",
+  "addExpenseCta": "[PT] Add",
+  "balanceNoExpensesYet": "[PT] Add expenses to see who owes what. Balances update automatically.",
   "addTitle": "[PT] New expense",
   "save": "[PT] Save",
   "cancel": "[PT] Cancel",

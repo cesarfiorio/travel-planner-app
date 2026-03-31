@@ -57,8 +57,8 @@ export function TripSwitcher({ variant = 'banner' }: TripSwitcherProps) {
           marginBottom: 8,
           borderRadius: 12,
           borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: '#FAFAFA',
+          borderColor: '#D1D5DB',
+          backgroundColor: '#F3F4F6',
           opacity: pressed ? 0.88 : 1,
         })}
         accessibilityRole="button"

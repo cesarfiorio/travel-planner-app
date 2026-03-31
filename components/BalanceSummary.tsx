@@ -21,6 +21,8 @@ type BalanceSummaryProps = {
   currency: string;
   currentUserId: string;
   memberIds: string[];
+  /** When false, net is 0 because there is nothing to split yet — not “all settled”. */
+  hasExpenses: boolean;
 };
 
 export function BalanceSummary({
@@ -30,6 +32,7 @@ export function BalanceSummary({
   currency,
   currentUserId,
   memberIds,
+  hasExpenses,
 }: BalanceSummaryProps) {
   const { t } = useTranslation('expenses');
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
@@ -38,7 +41,9 @@ export function BalanceSummary({
 
   const myNet = balances[currentUserId] ?? 0;
   let netLine: string;
-  if (myNet > 0) {
+  if (!hasExpenses) {
+    netLine = t('balanceNoExpensesYet');
+  } else if (myNet > 0) {
     netLine = t('netPositive', { amount: formatCurrency(myNet, currency, locale) });
   } else if (myNet < 0) {
     netLine = t('netNegative', { amount: formatCurrency(-myNet, currency, locale) });
@@ -53,7 +58,8 @@ export function BalanceSummary({
         style={{
           fontSize: 16,
           fontWeight: '700',
-          color: myNet > 0 ? positive : myNet < 0 ? negative : colors.inactive,
+          color:
+            !hasExpenses ? colors.inactive : myNet > 0 ? positive : myNet < 0 ? negative : colors.inactive,
           marginBottom: 16,
         }}
       >
@@ -77,7 +83,7 @@ export function BalanceSummary({
               marginBottom: 4,
             }}
           >
-            {label}
+            Csa
           </Text>
         );
       })}
