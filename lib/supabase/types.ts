@@ -14,15 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      community_route_likes: {
+        Row: {
+          created_at: string
+          id: string
+          route_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          route_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          route_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_route_likes_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "community_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_routes: {
         Row: {
           created_at: string
           creator_id: string
           description: string | null
+          destination: string | null
+          duration_days: number | null
           id: string
           is_public: boolean
+          likes_count: number
+          published_at: string | null
           route_geojson: Json | null
+          tags: string[]
+          tip: string | null
           title: string
+          travel_style: string | null
           trip_id: string | null
           updated_at: string
         }
@@ -30,10 +66,17 @@ export type Database = {
           created_at?: string
           creator_id: string
           description?: string | null
+          destination?: string | null
+          duration_days?: number | null
           id?: string
           is_public?: boolean
+          likes_count?: number
+          published_at?: string | null
           route_geojson?: Json | null
+          tags?: string[]
+          tip?: string | null
           title: string
+          travel_style?: string | null
           trip_id?: string | null
           updated_at?: string
         }
@@ -41,10 +84,17 @@ export type Database = {
           created_at?: string
           creator_id?: string
           description?: string | null
+          destination?: string | null
+          duration_days?: number | null
           id?: string
           is_public?: boolean
+          likes_count?: number
+          published_at?: string | null
           route_geojson?: Json | null
+          tags?: string[]
+          tip?: string | null
           title?: string
+          travel_style?: string | null
           trip_id?: string | null
           updated_at?: string
         }
@@ -336,6 +386,103 @@ export type Database = {
           },
         ]
       }
+      trip_memories: {
+        Row: {
+          cover_photo_url: string | null
+          cover_place_id: string | null
+          created_at: string
+          created_by: string
+          destination_label: string | null
+          end_date: string | null
+          id: string
+          mood: string
+          places_visited: number
+          share_token: string
+          start_date: string | null
+          total_spent_cents: number
+          travelers_count: number
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          cover_photo_url?: string | null
+          cover_place_id?: string | null
+          created_at?: string
+          created_by: string
+          destination_label?: string | null
+          end_date?: string | null
+          id?: string
+          mood: string
+          places_visited?: number
+          share_token?: string
+          start_date?: string | null
+          total_spent_cents?: number
+          travelers_count?: number
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          cover_photo_url?: string | null
+          cover_place_id?: string | null
+          created_at?: string
+          created_by?: string
+          destination_label?: string | null
+          end_date?: string | null
+          id?: string
+          mood?: string
+          places_visited?: number
+          share_token?: string
+          start_date?: string | null
+          total_spent_cents?: number
+          travelers_count?: number
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_memories_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_memory_journal_entries: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          memory_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          memory_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          memory_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_memory_journal_entries_memory_id_fkey"
+            columns: ["memory_id"]
+            isOneToOne: false
+            referencedRelation: "trip_memories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_places: {
         Row: {
           created_at: string
@@ -428,7 +575,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ranked_routes: {
+        Row: {
+          created_at: string
+          creator_id: string
+          description: string | null
+          destination: string | null
+          duration_days: number | null
+          id: string
+          is_public: boolean
+          likes_count: number
+          published_at: string | null
+          route_geojson: Json | null
+          score: number
+          tags: string[]
+          tip: string | null
+          title: string
+          travel_style: string | null
+          trip_id: string | null
+          updated_at: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_routes_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       routeflow_increment_places_views: { Args: { p_ids: string[] }; Returns: undefined }

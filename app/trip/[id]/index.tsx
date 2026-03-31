@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { useTripMemoryByTripId } from '../../../lib/hooks/useTripMemory';
 import { useTrip } from '../../../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../../../lib/store/appStore';
 
@@ -63,6 +64,7 @@ export default function TripDetailScreen() {
   const { user } = useAuth();
   const userId = user?.id ?? '';
   const { data: trip, isLoading, isError } = useTrip(tripId);
+  const { data: tripMemory } = useTripMemoryByTripId(tripId);
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
 
   useEffect(() => {
@@ -193,6 +195,14 @@ export default function TripDetailScreen() {
             a11y={t('actionMembers')}
             onPress={() => router.push(`/trip/${trip.id}/members`)}
           />
+          {trip.status === 'completed' ? (
+            <ActionCard
+              emoji="✨"
+              label={tripMemory ? t('actionMemory') : t('actionMemoryEmpty')}
+              a11y={t('actionMemory')}
+              onPress={() => router.push(`/trip/${trip.id}/memory`)}
+            />
+          ) : null}
         </View>
       </ScrollView>
     </View>
