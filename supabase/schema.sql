@@ -49,7 +49,7 @@ CREATE TABLE public.expenses (
   trip_id UUID NOT NULL REFERENCES public.trips (id) ON DELETE CASCADE,
   paid_by_user_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
   title TEXT NOT NULL,
-  amount NUMERIC(14, 2) NOT NULL CHECK (amount >= 0),
+  amount_cents BIGINT NOT NULL CHECK (amount_cents >= 0),
   currency TEXT NOT NULL DEFAULT 'EUR',
   category TEXT,
   expense_date DATE NOT NULL DEFAULT (CURRENT_DATE),
@@ -62,7 +62,7 @@ CREATE TABLE public.expense_splits (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   expense_id UUID NOT NULL REFERENCES public.expenses (id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  amount_owed NUMERIC(14, 2) NOT NULL CHECK (amount_owed >= 0),
+  amount_owed_cents BIGINT NOT NULL CHECK (amount_owed_cents >= 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (expense_id, user_id)
 );

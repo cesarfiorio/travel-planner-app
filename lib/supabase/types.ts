@@ -60,21 +60,21 @@ export type Database = {
       }
       expense_splits: {
         Row: {
-          amount_owed: number
+          amount_owed_cents: number
           created_at: string
           expense_id: string
           id: string
           user_id: string
         }
         Insert: {
-          amount_owed: number
+          amount_owed_cents: number
           created_at?: string
           expense_id: string
           id?: string
           user_id: string
         }
         Update: {
-          amount_owed?: number
+          amount_owed_cents?: number
           created_at?: string
           expense_id?: string
           id?: string
@@ -92,7 +92,7 @@ export type Database = {
       }
       expenses: {
         Row: {
-          amount: number
+          amount_cents: number
           category: string | null
           created_at: string
           currency: string
@@ -104,7 +104,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          amount: number
+          amount_cents: number
           category?: string | null
           created_at?: string
           currency?: string
@@ -116,7 +116,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          amount?: number
+          amount_cents?: number
           category?: string | null
           created_at?: string
           currency?: string
