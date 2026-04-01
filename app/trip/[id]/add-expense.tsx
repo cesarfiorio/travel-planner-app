@@ -18,8 +18,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { CurrencyPicker } from '../../../components/CurrencyPicker';
 import { colors } from '../../../constants/colors';
+import { isZeroDecimalCurrency } from '../../../constants/currencies';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import { useAddExpense } from '../../../lib/hooks/useExpenses';
+import { useAddExpense, useEditExpense, useTripExpenses } from '../../../lib/hooks/useExpenses';
 import type { MemberProfileBrief } from '../../../lib/hooks/useTrips';
 import { useTrip } from '../../../lib/hooks/useTrips';
 import {
@@ -53,15 +54,35 @@ function ymdToDate(s: string): Date {
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 }
 
+function centsToText(cents: number, cur: string): string {
+  if (isZeroDecimalCurrency(cur)) {
+    return String(cents);
+  }
+  return (cents / 100).toFixed(2);
+}
+
 export default function AddExpenseScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, expenseId: rawExpenseId } = useLocalSearchParams<{ id: string; expenseId?: string }>();
   const tripId = typeof id === 'string' ? id : '';
+  const expenseId = typeof rawExpenseId === 'string' ? rawExpenseId : undefined;
+  const isEdit = Boolean(expenseId);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation('expenses');
   const { user } = useAuth();
   const { data: trip, isLoading: tripLoading } = useTrip(tripId || undefined);
+  const { data: allExpenses = [] } = useTripExpenses(tripId || undefined);
   const addExpense = useAddExpense();
+  const editExpense = useEditExpense();
+  const isSaving = addExpense.isPending || editExpense.isPending;
+
+  const existing = useMemo(() => {
+    if (!expenseId) {
+      return null;
+    }
+    return allExpenses.find((e) => e.id === expenseId) ?? null;
+  }, [expenseId, allExpenses]);
 
   const memberIds = useMemo(() => {
     if (!trip) {
@@ -92,24 +113,55 @@ export default function AddExpenseScreen() {
   const [expenseDate, setExpenseDate] = useState(todayYmd());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [paidByUserId, setPaidByUserId] = useState(user?.id ?? '');
-  const [currency, setCurrency] = useState(() => trip?.default_currency ?? 'EUR');
+  const [currency, setCurrency] = useState(() => trip?.default_currency ?? 'USD');
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
   const [customByUser, setCustomByUser] = useState<Record<string, string>>({});
+  const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
     if (!trip || !user?.id) {
       return;
     }
-    const ids = new Set(memberIds);
-    if (ids.has(user.id)) {
-      setPaidByUserId(user.id);
-    } else if (memberIds[0]) {
-      setPaidByUserId(memberIds[0]);
+    if (seeded) {
+      return;
     }
-    if (trip.default_currency) {
-      setCurrency(trip.default_currency);
+
+    if (existing) {
+      setTitle(existing.title ?? '');
+      setAmountText(centsToText(existing.amount_cents, existing.currency || 'USD'));
+      setCategory((existing.category as Category) ?? 'food');
+      setExpenseDate(existing.expense_date ?? todayYmd());
+      setPaidByUserId(existing.paid_by_user_id);
+      setCurrency(existing.currency || trip.default_currency || 'USD');
+
+      const splits = existing.expense_splits ?? [];
+      const allEqual =
+        splits.length > 0 &&
+        splits.every((s) => s.amount_owed_cents === splits[0].amount_owed_cents);
+      if (allEqual && splits.length === memberIds.length) {
+        setSplitMode('equal');
+      } else {
+        setSplitMode('custom');
+        const custom: Record<string, string> = {};
+        for (const s of splits) {
+          custom[s.user_id] = centsToText(s.amount_owed_cents, existing.currency || 'USD');
+        }
+        setCustomByUser(custom);
+      }
+      setSeeded(true);
+    } else {
+      const ids = new Set(memberIds);
+      if (ids.has(user.id)) {
+        setPaidByUserId(user.id);
+      } else if (memberIds[0]) {
+        setPaidByUserId(memberIds[0]);
+      }
+      if (trip.default_currency) {
+        setCurrency(trip.default_currency);
+      }
+      setSeeded(true);
     }
-  }, [trip?.id, user?.id, memberIds.join('|')]);
+  }, [trip?.id, user?.id, memberIds.join('|'), existing?.id]);
 
   const displayName = (uid: string) => {
     const p = profileById.get(uid);
@@ -161,16 +213,30 @@ export default function AddExpenseScreen() {
     }
 
     try {
-      await addExpense.mutateAsync({
-        tripId,
-        title: trimmed,
-        amountCents: totalCents,
-        currency,
-        category,
-        expenseDate,
-        paidByUserId: paidByUserId || user.id,
-        splits,
-      });
+      if (isEdit && expenseId) {
+        await editExpense.mutateAsync({
+          expenseId,
+          tripId,
+          title: trimmed,
+          amountCents: totalCents,
+          currency,
+          category,
+          expenseDate,
+          paidByUserId: paidByUserId || user.id,
+          splits,
+        });
+      } else {
+        await addExpense.mutateAsync({
+          tripId,
+          title: trimmed,
+          amountCents: totalCents,
+          currency,
+          category,
+          expenseDate,
+          paidByUserId: paidByUserId || user.id,
+          splits,
+        });
+      }
       router.back();
     } catch {
       Alert.alert(t('errorSave'));
@@ -204,7 +270,7 @@ export default function AddExpenseScreen() {
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </Pressable>
         <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: colors.text, marginRight: 28 }}>
-          {t('addTitle')}
+          {isEdit ? t('editTitle') : t('addTitle')}
         </Text>
       </View>
 
@@ -394,20 +460,22 @@ export default function AddExpenseScreen() {
 
         <Pressable
           onPress={() => void onSubmit()}
-          disabled={addExpense.isPending}
+          disabled={isSaving}
           style={{
             marginTop: 24,
             paddingVertical: 16,
             borderRadius: 14,
             backgroundColor: colors.primarySolid,
             alignItems: 'center',
-            opacity: addExpense.isPending ? 0.7 : 1,
+            opacity: isSaving ? 0.7 : 1,
           }}
         >
-          {addExpense.isPending ? (
+          {isSaving ? (
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
-            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.onPrimary }}>{t('save')}</Text>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.onPrimary }}>
+              {isEdit ? t('saveEdit') : t('save')}
+            </Text>
           )}
         </Pressable>
       </ScrollView>

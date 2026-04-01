@@ -25,7 +25,8 @@ import { TripSwitcher } from '../../components/TripSwitcher';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useTripExpenses, useSettleDebt } from '../../lib/hooks/useExpenses';
+import { useTripExpenses, useSettleDebt, useDeleteExpense } from '../../lib/hooks/useExpenses';
+import type { ExpenseWithSplits } from '../../lib/hooks/useExpenses';
 import { useTrip } from '../../lib/hooks/useTrips';
 import type { MemberProfileBrief } from '../../lib/hooks/useTrips';
 import { useAppStore } from '../../lib/store/appStore';
@@ -71,6 +72,7 @@ export default function ExpensesScreen() {
     isRefetching,
   } = useTripExpenses(tripId);
   const settleMutation = useSettleDebt(tripId);
+  const deleteMutation = useDeleteExpense();
 
   const [historyTab, setHistoryTab] = useState<HistoryTab>('active');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
@@ -129,6 +131,34 @@ export default function ExpensesScreen() {
     });
     return list;
   }, [expenses, historyTab, categoryFilter, sortMode]);
+
+  const handleEdit = (expense: ExpenseWithSplits) => {
+    if (!tripId) {
+      return;
+    }
+    router.push(`/trip/${tripId}/add-expense?expenseId=${expense.id}`);
+  };
+
+  const handleDelete = (expense: ExpenseWithSplits) => {
+    if (!tripId) {
+      return;
+    }
+    Alert.alert(t('deleteConfirmTitle'), t('deleteConfirmBody', { title: expense.title }), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('deleteConfirm'),
+        style: 'destructive',
+        onPress: () => {
+          deleteMutation.mutate(
+            { expenseId: expense.id, tripId },
+            {
+              onError: (e) => Alert.alert(t('errorLoad'), formatErrorMessage(e, t('errorSave'))),
+            },
+          );
+        },
+      },
+    ]);
+  };
 
   const settlingDebtKey =
     settleMutation.isPending && settleMutation.variables
@@ -396,7 +426,13 @@ export default function ExpensesScreen() {
             </Text>
           }
           renderItem={({ item }) => (
-            <ExpenseItem expense={item} paidByProfile={profileById.get(item.paid_by_user_id)} profileById={profileById} />
+            <ExpenseItem
+              expense={item}
+              paidByProfile={profileById.get(item.paid_by_user_id)}
+              profileById={profileById}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           )}
           contentContainerStyle={{ paddingBottom: insets.bottom + 88 }}
         />

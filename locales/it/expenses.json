@@ -67,5 +67,12 @@
   "currency": "[IT] Currency",
   "selectCurrency": "[IT] Select currency",
   "searchCurrencies": "[IT] Search currencies...",
-  "mixedCurrencies": "[IT] Multiple currencies"
+  "mixedCurrencies": "[IT] Multiple currencies",
+  "editTitle": "[IT] Edit expense",
+  "editExpense": "[IT] Edit",
+  "saveEdit": "[IT] Save changes",
+  "deleteExpense": "[IT] Delete",
+  "deleteConfirmTitle": "[IT] Delete expense?",
+  "deleteConfirmBody": "[IT] \"{{title}}\" and its splits will be permanently deleted.",
+  "deleteConfirm": "[IT] Delete"
 }

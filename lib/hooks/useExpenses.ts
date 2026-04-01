@@ -188,6 +188,117 @@ export function useSettleDebt(tripId: string | undefined) {
   });
 }
 
+export type EditExpenseInput = {
+  expenseId: string;
+  tripId: string;
+  title: string;
+  amountCents: number;
+  currency: string;
+  category: string;
+  expenseDate: string;
+  paidByUserId: string;
+  splits: { user_id: string; amount_owed_cents: number }[];
+};
+
+export function useEditExpense() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async (input: EditExpenseInput): Promise<void> => {
+      if (!supabase || !userId) {
+        throw new Error('Not signed in');
+      }
+      const now = new Date().toISOString();
+      const { error: e1 } = await supabase
+        .from('expenses')
+        .update({
+          title: input.title.trim(),
+          amount_cents: input.amountCents,
+          currency: input.currency,
+          category: input.category,
+          expense_date: input.expenseDate,
+          paid_by_user_id: input.paidByUserId,
+          updated_at: now,
+        })
+        .eq('id', input.expenseId);
+
+      if (e1) {
+        throw e1;
+      }
+
+      const { error: delErr } = await supabase
+        .from('expense_splits')
+        .delete()
+        .eq('expense_id', input.expenseId);
+      if (delErr) {
+        throw delErr;
+      }
+
+      const rows = input.splits.map((s) => ({
+        expense_id: input.expenseId,
+        user_id: s.user_id,
+        amount_owed_cents: s.amount_owed_cents,
+      }));
+      const { error: e2 } = await supabase.from('expense_splits').insert(rows);
+      if (e2) {
+        throw e2;
+      }
+    },
+    onSuccess: (_void, vars) => {
+      void queryClient.invalidateQueries({ queryKey: expensesQueryKey(vars.tripId) });
+      void queryClient.invalidateQueries({ queryKey: tripDetailQueryKey(vars.tripId) });
+    },
+  });
+}
+
+export function useDeleteExpense() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ expenseId, tripId }: { expenseId: string; tripId: string }): Promise<void> => {
+      if (!supabase) {
+        throw new Error('Not configured');
+      }
+      const { error: splitsErr } = await supabase
+        .from('expense_splits')
+        .delete()
+        .eq('expense_id', expenseId);
+      if (splitsErr) {
+        throw splitsErr;
+      }
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId);
+      if (error) {
+        throw error;
+      }
+    },
+    onMutate: async ({ tripId, expenseId }) => {
+      await queryClient.cancelQueries({ queryKey: expensesQueryKey(tripId) });
+      const previous = queryClient.getQueryData<ExpenseWithSplits[]>(expensesQueryKey(tripId));
+      if (previous) {
+        queryClient.setQueryData(
+          expensesQueryKey(tripId),
+          previous.filter((e) => e.id !== expenseId),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, { tripId }, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(expensesQueryKey(tripId), ctx.previous);
+      }
+    },
+    onSuccess: (_void, { tripId }) => {
+      void queryClient.invalidateQueries({ queryKey: expensesQueryKey(tripId) });
+      void queryClient.invalidateQueries({ queryKey: tripDetailQueryKey(tripId) });
+    },
+  });
+}
+
 export function useAddExpense() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
