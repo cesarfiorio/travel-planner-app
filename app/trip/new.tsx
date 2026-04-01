@@ -121,7 +121,7 @@ export default function NewTripScreen() {
   const iosPickerOpen = Platform.OS === 'ios' && (showStart || showEnd);
   const scrollBottomPad =
     Platform.OS === 'ios'
-      ? Math.max(insets.bottom, 12) + (iosPickerOpen ? 58 : 96)
+      ? Math.max(insets.bottom, 12) + (iosPickerOpen ? 58 : 32)
       : 40;
 
   return (
@@ -206,68 +206,48 @@ export default function NewTripScreen() {
 
         <Text style={styles.label}>{t('trips:fieldCurrency')}</Text>
         <CurrencyPicker value={defaultCurrency} onChange={setDefaultCurrency} />
-
-        {Platform.OS === 'android' ? (
-          <View style={{ marginTop: 24 }}>
-            <Button
-              label={t('trips:createNewTripBanner')}
-              onPress={submit}
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={createTrip.isPending}
-              disabled={createTrip.isPending}
-            />
-          </View>
-        ) : null}
       </ScrollView>
 
-      {Platform.OS === 'ios' ? (
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            paddingHorizontal: 20,
-            paddingTop: iosPickerOpen ? 8 : 12,
-            paddingBottom: Math.max(insets.bottom, 12) + 10,
-            backgroundColor: colors.background,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: colors.border,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.06,
-            shadowRadius: 4,
-            elevation: 10,
-          }}
-        >
-          {iosPickerOpen ? (
-            <Button
-              label={t('common:save')}
-              onPress={() => {
-                setShowStart(false);
-                setShowEnd(false);
-              }}
-              variant="primary"
-              size="lg"
-              fullWidth
-              accessibilityLabel={t('common:save')}
-            />
-          ) : (
-            <Button
-              label={t('trips:createNewTripBanner')}
-              onPress={submit}
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={createTrip.isPending}
-              disabled={createTrip.isPending}
-              accessibilityLabel={t('trips:createNewTripBanner')}
-            />
-          )}
-        </View>
-      ) : null}
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: Math.max(insets.bottom, 12) + 10,
+          backgroundColor: colors.background,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: colors.border,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+          elevation: 10,
+        }}
+      >
+        {iosPickerOpen ? (
+          <Button
+            label={t('common:save')}
+            onPress={() => {
+              setShowStart(false);
+              setShowEnd(false);
+            }}
+            variant="primary"
+            size="lg"
+            fullWidth
+            accessibilityLabel={t('common:save')}
+          />
+        ) : (
+          <Button
+            label={t('trips:createNewTripBanner')}
+            onPress={submit}
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={createTrip.isPending}
+            disabled={createTrip.isPending}
+            accessibilityLabel={t('trips:createNewTripBanner')}
+          />
+        )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
