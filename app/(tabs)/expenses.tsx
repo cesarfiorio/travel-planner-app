@@ -458,7 +458,6 @@ export default function ExpensesScreen() {
             {
               debtorUserId: settleTarget.from,
               creditorUserId: settleTarget.to,
-              amountCents: settleTarget.cents,
             },
             {
               onSuccess: () => setSettleTarget(null),

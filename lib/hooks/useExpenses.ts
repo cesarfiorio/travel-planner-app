@@ -3,8 +3,6 @@ import { useEffect } from 'react';
 
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Tables } from '../supabase/types';
-import { expenseIdsForSettlingDebt } from '../utils/splitCalculator';
-
 import { useAuth } from './useAuth';
 import { tripDetailQueryKey } from './useTrips';
 
@@ -111,11 +109,10 @@ export type AddExpenseInput = {
   splits: { user_id: string; amount_owed_cents: number }[];
 };
 
-/** Settle a simplified debt edge: debtor repays creditor for `amountCents` (only matching splits are updated). */
+/** Settle all unsettled splits between debtor and creditor — full zero between them. */
 export type SettleDebtInput = {
   debtorUserId: string;
   creditorUserId: string;
-  amountCents: number;
 };
 
 export function useSettleDebt(tripId: string | undefined) {
@@ -130,12 +127,15 @@ export function useSettleDebt(tripId: string | undefined) {
       if (!list?.length) {
         list = await fetchTripExpenses(tripId);
       }
-      const expenseIds = expenseIdsForSettlingDebt(
-        list,
-        input.debtorUserId,
-        input.creditorUserId,
-        input.amountCents,
-      );
+      const expenseIds = list
+        .filter((e) => e.paid_by_user_id === input.creditorUserId)
+        .filter((e) =>
+          (e.expense_splits ?? []).some(
+            (s) => s.user_id === input.debtorUserId && !s.is_settled && s.amount_owed_cents > 0,
+          ),
+        )
+        .map((e) => e.id);
+
       if (expenseIds.length === 0) {
         return;
       }
@@ -157,17 +157,16 @@ export function useSettleDebt(tripId: string | undefined) {
       const previous = queryClient.getQueryData<ExpenseWithSplits[]>(expensesQueryKey(tripId));
       const now = new Date().toISOString();
       if (previous) {
-        const ids = new Set(
-          expenseIdsForSettlingDebt(previous, input.debtorUserId, input.creditorUserId, input.amountCents),
-        );
         queryClient.setQueryData(
           expensesQueryKey(tripId),
           previous.map((e) =>
-            ids.has(e.id)
+            e.paid_by_user_id === input.creditorUserId
               ? {
                   ...e,
                   expense_splits: (e.expense_splits ?? []).map((s) =>
-                    s.user_id === input.debtorUserId ? { ...s, is_settled: true, settled_at: now } : s,
+                    s.user_id === input.debtorUserId && !s.is_settled
+                      ? { ...s, is_settled: true, settled_at: now }
+                      : s,
                   ),
                 }
               : e,
