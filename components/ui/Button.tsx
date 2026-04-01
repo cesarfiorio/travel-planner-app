@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, type TextStyle, type ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 
 import { colors } from '../../constants/colors';
 
@@ -20,7 +25,7 @@ export interface ButtonProps {
 }
 
 const BG: Record<ButtonVariant, string> = {
-  primary: colors.primarySolid,
+  primary: '#EA580C',
   secondary: '#F0F0F0',
   outline: 'transparent',
   ghost: 'transparent',
@@ -30,15 +35,15 @@ const BG: Record<ButtonVariant, string> = {
 const TEXT_COLOR: Record<ButtonVariant, string> = {
   primary: '#FFFFFF',
   secondary: colors.text,
-  outline: colors.primarySolid,
-  ghost: colors.primarySolid,
+  outline: '#EA580C',
+  ghost: '#EA580C',
   destructive: '#FFFFFF',
 };
 
 const BORDER: Record<ButtonVariant, string | undefined> = {
   primary: undefined,
   secondary: undefined,
-  outline: colors.primarySolid,
+  outline: '#EA580C',
   ghost: undefined,
   destructive: undefined,
 };
@@ -59,28 +64,9 @@ export function Button({
   rightIcon,
   accessibilityLabel,
 }: ButtonProps) {
+  const bg = BG[variant];
   const textColor = TEXT_COLOR[variant];
-
-  const container: ViewStyle = {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    minHeight: HEIGHT[size],
-    paddingHorizontal: PADDING_H[size],
-    borderRadius: size === 'lg' ? 14 : 12,
-    backgroundColor: BG[variant],
-    borderWidth: BORDER[variant] ? 1.5 : 0,
-    borderColor: BORDER[variant],
-    alignSelf: fullWidth ? 'stretch' : 'flex-start',
-  };
-
-  const labelStyle: TextStyle = {
-    fontSize: FONT_SIZE[size],
-    fontWeight: '700',
-    color: textColor,
-    textAlign: 'center',
-  };
+  const border = BORDER[variant];
 
   return (
     <Pressable
@@ -88,22 +74,39 @@ export function Button({
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      style={({ pressed }) => [
-        container,
-        {
-          opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
-          transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
-        },
-      ]}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        height: HEIGHT[size],
+        paddingHorizontal: PADDING_H[size],
+        borderRadius: size === 'lg' ? 14 : 12,
+        backgroundColor: bg,
+        borderWidth: border ? 1.5 : 0,
+        borderColor: border ?? 'transparent',
+        width: fullWidth ? '100%' : undefined,
+        opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
+        transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
+      })}
     >
       {loading ? (
-        <ActivityIndicator color={textColor} size={size === 'sm' ? 'small' : 'small'} />
+        <ActivityIndicator color={textColor} size="small" />
       ) : (
-        <>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {leftIcon ?? null}
-          <Text style={labelStyle}>{label}</Text>
+          <Text
+            style={{
+              fontSize: FONT_SIZE[size],
+              fontWeight: '800',
+              color: textColor,
+              textAlign: 'center',
+            }}
+          >
+            {label}
+          </Text>
           {rightIcon ?? null}
-        </>
+        </View>
       )}
     </Pressable>
   );
