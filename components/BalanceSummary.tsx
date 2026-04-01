@@ -24,8 +24,8 @@ type BalanceSummaryProps = {
   /** When false, net is 0 because there is nothing to split yet — not “all settled”. */
   hasExpenses: boolean;
   onSettleDebt?: (debt: SimplifiedDebt) => void;
-  /** When matching `debt.from`, that row shows a settling state. */
-  settlingDebtorId?: string | null;
+  /** `${debt.from}|${debt.to}` while that settlement is in flight (avoids highlighting multiple edges from same debtor). */
+  settlingDebtKey?: string | null;
 };
 
 export function BalanceSummary({
@@ -37,7 +37,7 @@ export function BalanceSummary({
   memberIds,
   hasExpenses,
   onSettleDebt,
-  settlingDebtorId,
+  settlingDebtKey,
 }: BalanceSummaryProps) {
   const { t } = useTranslation('expenses');
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
@@ -109,7 +109,7 @@ export function BalanceSummary({
               currency={currency}
               currentUserId={currentUserId}
               onSettlePress={onSettleDebt}
-              isSettling={settlingDebtorId === d.from}
+              isSettling={settlingDebtKey === `${d.from}|${d.to}`}
             />
           ))}
         </>

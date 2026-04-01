@@ -101,8 +101,6 @@ export default function ExpensesScreen() {
     return [...ids];
   }, [trip]);
 
-  const expenseIds = useMemo(() => expenses.map((e) => e.id), [expenses]);
-
   const { balances, simplified, currency } = useMemo(() => {
     const cur = expenses[0]?.currency ?? 'EUR';
     const expPart = expenses.map((e) => ({
@@ -150,7 +148,10 @@ export default function ExpensesScreen() {
     return list;
   }, [expenses, historyTab, categoryFilter, sortMode]);
 
-  const settlingDebtorId = settleMutation.isPending ? (settleMutation.variables?.debtorUserId ?? null) : null;
+  const settlingDebtKey =
+    settleMutation.isPending && settleMutation.variables
+      ? `${settleMutation.variables.debtorUserId}|${settleMutation.variables.creditorUserId}`
+      : null;
 
   async function handleExportPdf() {
     if (!trip || exportingPdf) {
@@ -316,7 +317,7 @@ export default function ExpensesScreen() {
                   memberIds={memberIds}
                   hasExpenses={expenses.length > 0}
                   onSettleDebt={(d) => setSettleTarget(d)}
-                  settlingDebtorId={settlingDebtorId}
+                  settlingDebtKey={settlingDebtKey}
                 />
               ) : null}
 
@@ -454,7 +455,11 @@ export default function ExpensesScreen() {
             return;
           }
           settleMutation.mutate(
-            { expenseIds, debtorUserId: settleTarget.from },
+            {
+              debtorUserId: settleTarget.from,
+              creditorUserId: settleTarget.to,
+              amountCents: settleTarget.cents,
+            },
             {
               onSuccess: () => setSettleTarget(null),
               onError: (e) => Alert.alert(t('errorLoad'), formatErrorMessage(e, t('errorSave'))),

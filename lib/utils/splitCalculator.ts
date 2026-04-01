@@ -1,5 +1,8 @@
 /**
  * Pure expense math. Amounts are always integer cents.
+ *
+ * EXPENSE: someone paid for the group; splits say how much each member owes the payer.
+ * SETTLEMENT: marking is_settled on a split means that share was repaid to the payer — not a new expense.
  */
 
 export type ExpenseForBalance = {
@@ -12,11 +15,21 @@ export type SplitForBalance = {
   expense_id: string;
   user_id: string;
   amount_owed_cents: number;
-  /** When true, that share is treated as paid back to the payer for balance math. */
+  /** When true, that share no longer counts as owed; payer is treated as repaid this amount. */
   is_settled?: boolean | null;
 };
 
 export type SimplifiedDebt = { from: string; to: string; cents: number };
+
+export type ExpenseForSettlementPick = {
+  id: string;
+  paid_by_user_id: string;
+  expense_splits?: Array<{
+    user_id: string;
+    amount_owed_cents: number;
+    is_settled?: boolean | null;
+  }> | null;
+};
 
 /** Convert a decimal currency amount (e.g. 42.5 dollars) to cents. */
 export function toCents(amount: number): number {
@@ -44,9 +57,18 @@ export function calculateEqualSplits(totalCents: number, memberIds: string[]): R
   return out;
 }
 
+/** Sum of all net balances (must be 0 when data is consistent). */
+export function sumBalances(balances: Record<string, number>): number {
+  return Object.values(balances).reduce((a, v) => a + v, 0);
+}
+
 /**
- * Net balance per user (cents). Positive = others owe you; negative = you owe others.
- * Sums to zero when each expense's splits sum to its total.
+ * Net balance per user (cents). Positive = others owe you net; negative = you owe others net.
+ *
+ * For each expense: add amount_cents to the payer (they laid out cash).
+ * For each split row:
+ *   - Unsettled: that user still owes their share → subtract amount from that user.
+ *   - Settled: that share was repaid to the payer → subtract amount from the payer (reduces how much they're still owed).
  */
 export function calculateBalances(
   expenses: ExpenseForBalance[],
@@ -59,9 +81,10 @@ export function calculateBalances(
     list.push(s);
     byExpense.set(s.expense_id, list);
   }
+
   for (const e of expenses) {
-    const rows = byExpense.get(e.id) ?? [];
     balances[e.paid_by_user_id] = (balances[e.paid_by_user_id] ?? 0) + e.amount_cents;
+    const rows = byExpense.get(e.id) ?? [];
     for (const row of rows) {
       if (row.is_settled) {
         balances[e.paid_by_user_id] = (balances[e.paid_by_user_id] ?? 0) - row.amount_owed_cents;
@@ -70,11 +93,13 @@ export function calculateBalances(
       }
     }
   }
+
   return balances;
 }
 
 /**
- * Greedy simplification: minimize cash flows (not necessarily globally optimal, but standard practice).
+ * Greedy simplification: repeatedly match the largest debtor to the largest creditor.
+ * Input balances should come from calculateBalances() (unsettled splits only affect owed side).
  */
 export function simplifyDebts(balances: Record<string, number>): SimplifiedDebt[] {
   const b: Record<string, number> = { ...balances };
@@ -120,4 +145,94 @@ export function validateCustomSplitsSum(
 ): boolean {
   const sum = Object.values(perMemberCents).reduce((a, v) => a + v, 0);
   return sum === totalCents;
+}
+
+type SettlementItem = { expenseId: string; cents: number };
+
+/** Try exact subset sum; prefer fewer expenses on ties. */
+function exactSubsetExpenseIds(items: SettlementItem[], targetCents: number): string[] | null {
+  const n = items.length;
+  if (n === 0 || targetCents <= 0) {
+    return null;
+  }
+  if (n > 22) {
+    return null;
+  }
+  let best: string[] | null = null;
+  let bestSize = Infinity;
+  for (let mask = 0; mask < 1 << n; mask++) {
+    let s = 0;
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) {
+        s += items[i].cents;
+        ids.push(items[i].expenseId);
+      }
+    }
+    if (s === targetCents && ids.length < bestSize) {
+      best = ids;
+      bestSize = ids.length;
+    }
+  }
+  return best;
+}
+
+/** Greedy: largest shares first until sum >= target. */
+function greedyCoverExpenseIds(items: SettlementItem[], targetCents: number): string[] {
+  if (targetCents <= 0) {
+    return [];
+  }
+  const sorted = [...items].sort((a, b) => b.cents - a.cents);
+  let acc = 0;
+  const ids: string[] = [];
+  for (const it of sorted) {
+    if (acc >= targetCents) {
+      break;
+    }
+    ids.push(it.expenseId);
+    acc += it.cents;
+  }
+  if (acc >= targetCents) {
+    return ids;
+  }
+  // Not enough total to reach target — settle everything owed between this pair
+  return items.map((x) => x.expenseId);
+}
+
+/**
+ * Expense IDs whose debtor split should be marked settled for a direct payment debtor → creditor.
+ * Only expenses paid by `creditorUserId` with an unsettled split for `debtorUserId` are candidates.
+ * Prefers a subset whose split amounts sum exactly to `targetCents` (e.g. simplified edge amount).
+ */
+export function expenseIdsForSettlingDebt(
+  expenses: ExpenseForSettlementPick[],
+  debtorUserId: string,
+  creditorUserId: string,
+  targetCents: number,
+): string[] {
+  const items: SettlementItem[] = [];
+  for (const e of expenses) {
+    if (e.paid_by_user_id !== creditorUserId) {
+      continue;
+    }
+    const sp = (e.expense_splits ?? []).find(
+      (s) =>
+        s.user_id === debtorUserId &&
+        !(s.is_settled ?? false) &&
+        Number.isFinite(s.amount_owed_cents) &&
+        s.amount_owed_cents > 0,
+    );
+    if (sp) {
+      items.push({ expenseId: e.id, cents: sp.amount_owed_cents });
+    }
+  }
+  if (items.length === 0 || targetCents <= 0) {
+    return [];
+  }
+
+  const exact = exactSubsetExpenseIds(items, targetCents);
+  if (exact) {
+    return exact;
+  }
+  return greedyCoverExpenseIds(items, targetCents);
 }

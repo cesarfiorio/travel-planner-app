@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Tables } from '../supabase/types';
+import { expenseIdsForSettlingDebt } from '../utils/splitCalculator';
 
 import { useAuth } from './useAuth';
 import { tripDetailQueryKey } from './useTrips';
@@ -110,9 +111,11 @@ export type AddExpenseInput = {
   splits: { user_id: string; amount_owed_cents: number }[];
 };
 
+/** Settle a simplified debt edge: debtor repays creditor for `amountCents` (only matching splits are updated). */
 export type SettleDebtInput = {
-  expenseIds: string[];
   debtorUserId: string;
+  creditorUserId: string;
+  amountCents: number;
 };
 
 export function useSettleDebt(tripId: string | undefined) {
@@ -120,14 +123,27 @@ export function useSettleDebt(tripId: string | undefined) {
 
   return useMutation({
     mutationFn: async (input: SettleDebtInput): Promise<void> => {
-      if (!supabase) {
+      if (!supabase || !tripId) {
         throw new Error('Not configured');
+      }
+      let list = queryClient.getQueryData<ExpenseWithSplits[]>(expensesQueryKey(tripId));
+      if (!list?.length) {
+        list = await fetchTripExpenses(tripId);
+      }
+      const expenseIds = expenseIdsForSettlingDebt(
+        list,
+        input.debtorUserId,
+        input.creditorUserId,
+        input.amountCents,
+      );
+      if (expenseIds.length === 0) {
+        return;
       }
       const now = new Date().toISOString();
       const { error } = await supabase
         .from('expense_splits')
         .update({ is_settled: true, settled_at: now })
-        .in('expense_id', input.expenseIds)
+        .in('expense_id', expenseIds)
         .eq('user_id', input.debtorUserId);
       if (error) {
         throw error;
@@ -141,10 +157,13 @@ export function useSettleDebt(tripId: string | undefined) {
       const previous = queryClient.getQueryData<ExpenseWithSplits[]>(expensesQueryKey(tripId));
       const now = new Date().toISOString();
       if (previous) {
+        const ids = new Set(
+          expenseIdsForSettlingDebt(previous, input.debtorUserId, input.creditorUserId, input.amountCents),
+        );
         queryClient.setQueryData(
           expensesQueryKey(tripId),
           previous.map((e) =>
-            input.expenseIds.includes(e.id)
+            ids.has(e.id)
               ? {
                   ...e,
                   expense_splits: (e.expense_splits ?? []).map((s) =>

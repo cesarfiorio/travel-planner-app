@@ -1,7 +1,9 @@
 import {
   calculateBalances,
   calculateEqualSplits,
+  expenseIdsForSettlingDebt,
   simplifyDebts,
+  sumBalances,
   toCents,
   validateCustomSplitsSum,
 } from '../splitCalculator';
@@ -53,8 +55,7 @@ describe('calculateBalances', () => {
       { expense_id: 'e2', user_id: 'bob', amount_owed_cents: 2000 },
     ];
     const b = calculateBalances(expenses, splits);
-    const sum = Object.values(b).reduce((a, v) => a + v, 0);
-    expect(sum).toBe(0);
+    expect(sumBalances(b)).toBe(0);
   });
 
   it('one payer two-way equal split', () => {
@@ -66,6 +67,7 @@ describe('calculateBalances', () => {
     const b = calculateBalances(expenses, splits);
     expect(b['a']).toBe(50);
     expect(b['b']).toBe(-50);
+    expect(sumBalances(b)).toBe(0);
   });
 
   it('treats settled splits as repaid to payer', () => {
@@ -77,8 +79,7 @@ describe('calculateBalances', () => {
     const b = calculateBalances(expenses, splits);
     expect(b['alice']).toBe(50);
     expect(b['bob']).toBe(-50);
-    const sum = Object.values(b).reduce((a, v) => a + v, 0);
-    expect(sum).toBe(0);
+    expect(sumBalances(b)).toBe(0);
   });
 
   it('zero net when all shares settled', () => {
@@ -90,6 +91,124 @@ describe('calculateBalances', () => {
     const b = calculateBalances(expenses, splits);
     expect(b['alice'] ?? 0).toBe(0);
     expect(b['bob'] ?? 0).toBe(0);
+    expect(sumBalances(b)).toBe(0);
+  });
+
+  /** Case 1: A paid $90, split 3 ways equally → B and C each owe A $30 */
+  it('Case 1: one payer three-way equal split and simplifyDebts', () => {
+    const expenses = [{ id: 'e1', paid_by_user_id: 'A', amount_cents: 9000 }];
+    const splits = [
+      { expense_id: 'e1', user_id: 'A', amount_owed_cents: 3000 },
+      { expense_id: 'e1', user_id: 'B', amount_owed_cents: 3000 },
+      { expense_id: 'e1', user_id: 'C', amount_owed_cents: 3000 },
+    ];
+    const b = calculateBalances(expenses, splits);
+    expect(sumBalances(b)).toBe(0);
+    expect(b['A']).toBe(6000);
+    expect(b['B']).toBe(-3000);
+    expect(b['C']).toBe(-3000);
+    const edges = simplifyDebts(b);
+    expect(edges).toEqual(
+      expect.arrayContaining([
+        { from: 'B', to: 'A', cents: 3000 },
+        { from: 'C', to: 'A', cents: 3000 },
+      ]),
+    );
+    expect(edges.length).toBe(2);
+  });
+
+  /** Case 2: A paid $90 and B paid $60, each split 3× equal among A,B,C */
+  it('Case 2: two payers three-way splits — balances sum to zero', () => {
+    const expenses = [
+      { id: 'e1', paid_by_user_id: 'A', amount_cents: 9000 },
+      { id: 'e2', paid_by_user_id: 'B', amount_cents: 6000 },
+    ];
+    const splits = [
+      { expense_id: 'e1', user_id: 'A', amount_owed_cents: 3000 },
+      { expense_id: 'e1', user_id: 'B', amount_owed_cents: 3000 },
+      { expense_id: 'e1', user_id: 'C', amount_owed_cents: 3000 },
+      { expense_id: 'e2', user_id: 'A', amount_owed_cents: 2000 },
+      { expense_id: 'e2', user_id: 'B', amount_owed_cents: 2000 },
+      { expense_id: 'e2', user_id: 'C', amount_owed_cents: 2000 },
+    ];
+    const b = calculateBalances(expenses, splits);
+    expect(sumBalances(b)).toBe(0);
+    expect(b['A']).toBe(4000);
+    expect(b['B']).toBe(1000);
+    expect(b['C']).toBe(-5000);
+    const edges = simplifyDebts(b);
+    let check: Record<string, number> = { ...b };
+    for (const e of edges) {
+      check[e.from] = (check[e.from] ?? 0) + e.cents;
+      check[e.to] = (check[e.to] ?? 0) - e.cents;
+    }
+    expect(sumBalances(check)).toBe(0);
+    expect(check['A'] ?? 0).toBe(0);
+    expect(check['B'] ?? 0).toBe(0);
+    expect(check['C'] ?? 0).toBe(0);
+  });
+
+  /** Case 3: B settles $30 to A — mark B split on A-paid expense settled */
+  it('Case 3: after settling B→A $30, creditor balance drops by $30', () => {
+    const expenses = [{ id: 'e1', paid_by_user_id: 'A', amount_cents: 9000 }];
+    const splitsBefore = [
+      { expense_id: 'e1', user_id: 'A', amount_owed_cents: 3000 },
+      { expense_id: 'e1', user_id: 'B', amount_owed_cents: 3000 },
+      { expense_id: 'e1', user_id: 'C', amount_owed_cents: 3000 },
+    ];
+    expect(sumBalances(calculateBalances(expenses, splitsBefore))).toBe(0);
+
+    const splitsAfter = splitsBefore.map((s) =>
+      s.user_id === 'B' ? { ...s, is_settled: true as const } : s,
+    );
+    const b2 = calculateBalances(expenses, splitsAfter);
+    expect(sumBalances(b2)).toBe(0);
+    expect(b2['A']).toBe(3000);
+    expect(b2['B'] ?? 0).toBe(0);
+    expect(b2['C']).toBe(-3000);
+  });
+});
+
+describe('expenseIdsForSettlingDebt', () => {
+  it('only picks expenses paid by the creditor with unsettled debtor split', () => {
+    const expenses = [
+      {
+        id: 'e-alice',
+        paid_by_user_id: 'alice',
+        expense_splits: [
+          { user_id: 'bob', amount_owed_cents: 4200, is_settled: false },
+          { user_id: 'carol', amount_owed_cents: 1000, is_settled: false },
+        ],
+      },
+      {
+        id: 'e-bob-paid',
+        paid_by_user_id: 'bob',
+        expense_splits: [{ user_id: 'alice', amount_owed_cents: 5000, is_settled: false }],
+      },
+    ];
+    const ids = expenseIdsForSettlingDebt(expenses, 'bob', 'alice', 4200);
+    expect(ids).toEqual(['e-alice']);
+    expect(ids).not.toContain('e-bob-paid');
+  });
+
+  it('returns exact subset when possible', () => {
+    const expenses = [
+      {
+        id: 'e1',
+        paid_by_user_id: 'pedro',
+        expense_splits: [
+          { user_id: 'ana', amount_owed_cents: 2000, is_settled: false },
+          { user_id: 'pedro', amount_owed_cents: 1000, is_settled: false },
+        ],
+      },
+      {
+        id: 'e2',
+        paid_by_user_id: 'pedro',
+        expense_splits: [{ user_id: 'ana', amount_owed_cents: 2200, is_settled: false }],
+      },
+    ];
+    const ids = expenseIdsForSettlingDebt(expenses, 'ana', 'pedro', 4200);
+    expect(ids.sort()).toEqual(['e1', 'e2'].sort());
   });
 });
 
