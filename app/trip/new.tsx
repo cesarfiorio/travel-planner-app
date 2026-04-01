@@ -243,22 +243,17 @@ export default function NewTripScreen() {
           }}
         >
           {iosPickerOpen ? (
-            <Pressable
+            <Button
+              label={t('common:save')}
               onPress={() => {
                 setShowStart(false);
                 setShowEnd(false);
               }}
-              style={({ pressed }) => ({
-                alignSelf: 'center',
-                paddingVertical: 16,
-                paddingHorizontal: 32,
-                opacity: pressed ? 0.75 : 1,
-              })}
-              accessibilityRole="button"
+              variant="primary"
+              size="lg"
+              fullWidth
               accessibilityLabel={t('common:save')}
-            >
-              <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 18 }}>{t('common:save')}</Text>
-            </Pressable>
+            />
           ) : (
             <Button
               label={t('trips:createNewTripBanner')}
