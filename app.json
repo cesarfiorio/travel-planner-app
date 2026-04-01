@@ -2,6 +2,7 @@
   "expo": {
     "name": "RouteFlow",
     "slug": "routeflow",
+    "platforms": ["ios", "android"],
     "scheme": "routeflow",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -34,11 +35,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.CAMERA", "android.permission.READ_MEDIA_IMAGES"]
-    },
-    "web": {
-      "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -64,7 +64,11 @@
       ]
     ],
     "extra": {
-      "privacyPolicyUrl": "https://routeflow.app/privacy"
+      "privacyPolicyUrl": "https://routeflow.app/privacy",
+      "router": {},
+      "eas": {
+        "projectId": "1a7d0c46-f418-450b-ad6e-90b36688a8de"
+      }
     }
   }
 }
