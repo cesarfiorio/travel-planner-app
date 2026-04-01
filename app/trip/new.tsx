@@ -16,7 +16,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CurrencyPicker } from '../../components/CurrencyPicker';
 import { colors } from '../../constants/colors';
+import { defaultCurrencyForLocale } from '../../constants/currencies';
 import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../../lib/hooks/useSubscription';
@@ -55,6 +57,9 @@ export default function NewTripScreen() {
   });
   const [showStart, setShowStart] = useState(false);
   const [showEnd, setShowEnd] = useState(false);
+  const [defaultCurrency, setDefaultCurrency] = useState<string>(() =>
+    defaultCurrencyForLocale(i18n.language),
+  );
 
   const openStartPicker = () => {
     setShowEnd(false);
@@ -99,6 +104,7 @@ export default function NewTripScreen() {
         destination_label: destination.trim() || null,
         start_date: toYmd(start),
         end_date: toYmd(end),
+        default_currency: defaultCurrency,
       },
       {
         onSuccess: (row) => {
@@ -197,6 +203,9 @@ export default function NewTripScreen() {
             }}
           />
         ) : null}
+
+        <Text style={styles.label}>{t('trips:fieldCurrency')}</Text>
+        <CurrencyPicker value={defaultCurrency} onChange={setDefaultCurrency} />
 
         {Platform.OS === 'android' ? (
           <Pressable

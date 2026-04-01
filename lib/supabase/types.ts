@@ -559,6 +559,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          default_currency: string
           description: string | null
           destination_label: string | null
           end_date: string | null
@@ -571,6 +572,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          default_currency?: string
           description?: string | null
           destination_label?: string | null
           end_date?: string | null
@@ -583,6 +585,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          default_currency?: string
           description?: string | null
           destination_label?: string | null
           end_date?: string | null

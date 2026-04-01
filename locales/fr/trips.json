@@ -19,6 +19,7 @@
   "fieldDestinationPlaceholder": "[FR] City, region, or country",
   "fieldStartDate": "[FR] Start date",
   "fieldEndDate": "[FR] End date",
+  "fieldCurrency": "[FR] Default currency",
   "pickDate": "[FR] Choose date",
   "submitCreate": "[FR] Create trip",
   "createNewTripBanner": "[FR] Create a new trip",

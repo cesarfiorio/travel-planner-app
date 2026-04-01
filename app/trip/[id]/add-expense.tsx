@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { CurrencyPicker } from '../../../components/CurrencyPicker';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useAddExpense } from '../../../lib/hooks/useExpenses';
@@ -91,10 +92,9 @@ export default function AddExpenseScreen() {
   const [expenseDate, setExpenseDate] = useState(todayYmd());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [paidByUserId, setPaidByUserId] = useState(user?.id ?? '');
+  const [currency, setCurrency] = useState(() => trip?.default_currency ?? 'EUR');
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
   const [customByUser, setCustomByUser] = useState<Record<string, string>>({});
-
-  const currency = 'EUR';
 
   useEffect(() => {
     if (!trip || !user?.id) {
@@ -105,6 +105,9 @@ export default function AddExpenseScreen() {
       setPaidByUserId(user.id);
     } else if (memberIds[0]) {
       setPaidByUserId(memberIds[0]);
+    }
+    if (trip.default_currency) {
+      setCurrency(trip.default_currency);
     }
   }, [trip?.id, user?.id, memberIds.join('|')]);
 
@@ -242,7 +245,8 @@ export default function AddExpenseScreen() {
             marginBottom: 8,
           }}
         />
-        <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 16 }}>{currency}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 6, marginTop: 8 }}>{t('currency')}</Text>
+        <CurrencyPicker value={currency} onChange={setCurrency} />
 
         <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{t('fieldCategory')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>

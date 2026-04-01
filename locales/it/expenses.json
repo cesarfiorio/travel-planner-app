@@ -63,5 +63,9 @@
   "emptyList": "[IT] No expenses yet.",
   "paidBy": "[IT] Paid by {{name}}",
   "retry": "[IT] Retry",
-  "errorLoad": "[IT] Could not load expenses."
+  "errorLoad": "[IT] Could not load expenses.",
+  "currency": "[IT] Currency",
+  "selectCurrency": "[IT] Select currency",
+  "searchCurrencies": "[IT] Search currencies...",
+  "mixedCurrencies": "[IT] Multiple currencies"
 }

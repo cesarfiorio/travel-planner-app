@@ -63,5 +63,9 @@
   "emptyList": "No expenses yet.",
   "paidBy": "Paid by {{name}}",
   "retry": "Retry",
-  "errorLoad": "Could not load expenses."
+  "errorLoad": "Could not load expenses.",
+  "currency": "Currency",
+  "selectCurrency": "Select currency",
+  "searchCurrencies": "Search currencies...",
+  "mixedCurrencies": "Multiple currencies"
 }

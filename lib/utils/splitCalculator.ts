@@ -19,7 +19,7 @@ export type SplitForBalance = {
   is_settled?: boolean | null;
 };
 
-export type SimplifiedDebt = { from: string; to: string; cents: number };
+export type SimplifiedDebt = { from: string; to: string; cents: number; currency?: string };
 
 export type ExpenseForSettlementPick = {
   id: string;

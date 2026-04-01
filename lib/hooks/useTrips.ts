@@ -189,6 +189,7 @@ export type CreateTripInput = {
   destination_label: string | null;
   start_date: string | null;
   end_date: string | null;
+  default_currency?: string;
 };
 
 export function useCreateTrip() {
@@ -209,6 +210,7 @@ export function useCreateTrip() {
           destination_label: input.destination_label?.trim() || null,
           start_date: input.start_date,
           end_date: input.end_date,
+          default_currency: input.default_currency ?? 'USD',
           created_by: userId,
           status: 'planning',
           updated_at: now,

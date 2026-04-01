@@ -19,6 +19,7 @@
   "fieldDestinationPlaceholder": "[DE] City, region, or country",
   "fieldStartDate": "[DE] Start date",
   "fieldEndDate": "[DE] End date",
+  "fieldCurrency": "[DE] Default currency",
   "pickDate": "[DE] Choose date",
   "submitCreate": "[DE] Create trip",
   "createNewTripBanner": "[DE] Create a new trip",

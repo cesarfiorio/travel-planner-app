@@ -32,7 +32,7 @@ import { useAppStore } from '../../lib/store/appStore';
 import { expenseHistoryBucket } from '../../lib/utils/expenseSettlement';
 import { generateExpenseReport } from '../../lib/utils/generateExpenseReport';
 import { formatCurrency } from '../../lib/utils/formatCurrency';
-import { calculateBalances, simplifyDebts, type SimplifiedDebt } from '../../lib/utils/splitCalculator';
+import type { SimplifiedDebt } from '../../lib/utils/splitCalculator';
 
 import * as Localization from 'expo-localization';
 
@@ -101,25 +101,7 @@ export default function ExpensesScreen() {
     return [...ids];
   }, [trip]);
 
-  const { balances, simplified, currency } = useMemo(() => {
-    const cur = expenses[0]?.currency ?? 'EUR';
-    const expPart = expenses.map((e) => ({
-      id: e.id,
-      paid_by_user_id: e.paid_by_user_id,
-      amount_cents: e.amount_cents,
-    }));
-    const splitPart = expenses.flatMap((e) =>
-      (e.expense_splits ?? []).map((s) => ({
-        expense_id: e.id,
-        user_id: s.user_id,
-        amount_owed_cents: s.amount_owed_cents,
-        is_settled: s.is_settled ?? false,
-      })),
-    );
-    const bal = calculateBalances(expPart, splitPart);
-    const sim = simplifyDebts(bal);
-    return { balances: bal, simplified: sim, currency: cur };
-  }, [expenses]);
+  const currency = useMemo(() => expenses[0]?.currency ?? 'USD', [expenses]);
 
   const filteredExpenses = useMemo(() => {
     let list = [...expenses];
@@ -244,7 +226,7 @@ export default function ExpensesScreen() {
       : '';
 
   const settleAmountLabel =
-    settleTarget ? formatCurrency(settleTarget.cents, currency, locale) : '';
+    settleTarget ? formatCurrency(settleTarget.cents, settleTarget.currency ?? currency, locale) : '';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
@@ -309,10 +291,8 @@ export default function ExpensesScreen() {
             <>
               {trip && uid ? (
                 <BalanceSummary
-                  balances={balances}
-                  simplified={simplified}
+                  expenses={expenses}
                   profileById={profileById}
-                  currency={currency}
                   currentUserId={uid}
                   memberIds={memberIds}
                   hasExpenses={expenses.length > 0}
