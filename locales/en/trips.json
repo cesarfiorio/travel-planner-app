@@ -113,5 +113,11 @@
   "itineraryNotesShow": "Notes",
   "itineraryNotesHide": "Hide notes",
   "itineraryNotesPlaceholder": "Add notes…",
-  "itineraryCategoryUnknown": "Place"
+  "itineraryCategoryUnknown": "Place",
+  "deleteTrip": "Delete this trip",
+  "deleteTripTitle": "Delete trip?",
+  "deleteTripBody": "\"{{name}}\" and all its data (expenses, itinerary, members) will be permanently deleted.",
+  "deleteTripConfirm": "Delete",
+  "errorTitle": "Error",
+  "errorDeleteTrip": "Could not delete the trip."
 }

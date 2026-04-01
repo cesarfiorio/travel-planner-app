@@ -113,5 +113,11 @@
   "itineraryNotesShow": "[FR] Notes",
   "itineraryNotesHide": "[FR] Hide notes",
   "itineraryNotesPlaceholder": "[FR] Add notes…",
-  "itineraryCategoryUnknown": "[FR] Place"
+  "itineraryCategoryUnknown": "[FR] Place",
+  "deleteTrip": "[FR] Delete this trip",
+  "deleteTripTitle": "[FR] Delete trip?",
+  "deleteTripBody": "[FR] {{name}} and all its data will be permanently deleted.",
+  "deleteTripConfirm": "[FR] Delete",
+  "errorTitle": "[FR] Error",
+  "errorDeleteTrip": "[FR] Could not delete the trip."
 }

@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../../constants/colors';
+import { formatErrorMessage } from '../../../lib/formatError';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { useTripMemoryByTripId } from '../../../lib/hooks/useTripMemory';
-import { useTrip } from '../../../lib/hooks/useTrips';
+import { useDeleteTrip, useTrip } from '../../../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../../../lib/store/appStore';
 
 function tripLifecycleStep(status: string): 0 | 1 | 2 {
@@ -65,6 +66,7 @@ export default function TripDetailScreen() {
   const userId = user?.id ?? '';
   const { data: trip, isLoading, isError } = useTrip(tripId);
   const { data: tripMemory } = useTripMemoryByTripId(tripId);
+  const deleteTripMut = useDeleteTrip();
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
 
   useEffect(() => {
@@ -76,6 +78,28 @@ export default function TripDetailScreen() {
   const isOwner = useMemo(() => {
     return Boolean(trip?.trip_members.some((m) => m.user_id === userId && m.role === 'owner'));
   }, [trip, userId]);
+
+  const confirmDeleteTrip = () => {
+    if (!tripId || !trip) {
+      return;
+    }
+    Alert.alert(t('deleteTripTitle'), t('deleteTripBody', { name: trip.name }), [
+      { text: t('cancel', { ns: 'common' }), style: 'cancel' },
+      {
+        text: t('deleteTripConfirm'),
+        style: 'destructive',
+        onPress: () => {
+          deleteTripMut.mutate(tripId, {
+            onSuccess: () => {
+              setActiveTrip(null);
+              router.replace('/(tabs)/home');
+            },
+            onError: (e) => Alert.alert(t('errorTitle'), formatErrorMessage(e, t('errorDeleteTrip'))),
+          });
+        },
+      },
+    ]);
+  };
 
   const lifecycleStep = trip ? tripLifecycleStep(trip.status) : 0;
 
@@ -204,6 +228,31 @@ export default function TripDetailScreen() {
             />
           ) : null}
         </View>
+
+        {isOwner ? (
+          <Pressable
+            onPress={confirmDeleteTrip}
+            disabled={deleteTripMut.isPending}
+            style={({ pressed }) => ({
+              marginTop: 32,
+              paddingVertical: 14,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              backgroundColor: '#FEF2F2',
+              alignItems: 'center',
+              opacity: deleteTripMut.isPending ? 0.5 : pressed ? 0.85 : 1,
+            })}
+            accessibilityRole="button"
+            accessibilityLabel={t('deleteTrip')}
+          >
+            {deleteTripMut.isPending ? (
+              <ActivityIndicator size="small" color="#DC2626" />
+            ) : (
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#DC2626' }}>{t('deleteTrip')}</Text>
+            )}
+          </Pressable>
+        ) : null}
       </ScrollView>
     </View>
   );
