@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
+import { Button } from './ui';
 import { formatCurrency } from '../lib/utils/formatCurrency';
 import type { SimplifiedDebt } from '../lib/utils/splitCalculator';
 
@@ -55,21 +56,14 @@ export function DebtRow({
     >
       <Text style={{ flex: 1, fontSize: 15, color: colors.text, marginRight: 12 }}>{line}</Text>
       {canSettle ? (
-        <Pressable
+        <Button
+          label={t('settleUp')}
           onPress={() => onSettlePress?.(debt)}
+          variant="outline"
+          size="sm"
           disabled={isSettling}
-          style={({ pressed }) => ({
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderRadius: 10,
-            backgroundColor: '#FFF3EC',
-            opacity: pressed ? 0.85 : isSettling ? 0.5 : 1,
-          })}
-          accessibilityRole="button"
           accessibilityLabel={t('settleUp')}
-        >
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primarySolid }}>{t('settleUp')}</Text>
-        </Pressable>
+        />
       ) : null}
     </View>
   );

@@ -2,16 +2,15 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { Button } from '../../components/ui';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
 import { useUpdateProfileName } from '../../lib/hooks/useProfile';
@@ -80,28 +79,15 @@ export default function OnboardingSetupScreen() {
           accessibilityLabel={t('profile:displayNameA11y')}
         />
 
-        <Pressable
+        <Button
+          label={t('profile:letsGo')}
           onPress={submit}
-          disabled={updateProfile.isPending}
-          style={({ pressed }) => ({
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            paddingVertical: 16,
-            borderRadius: 12,
-            backgroundColor: colors.primary,
-            opacity: updateProfile.isPending ? 0.7 : pressed ? 0.9 : 1,
-          })}
-          accessibilityRole="button"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={updateProfile.isPending}
           accessibilityLabel={t('profile:continueToAppA11y')}
-        >
-          {updateProfile.isPending ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '700' }}>{t('profile:letsGo')}</Text>
-          )}
-        </Pressable>
+        />
       </View>
     </KeyboardAvoidingView>
   );

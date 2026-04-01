@@ -13,6 +13,7 @@ import {
 import type { PurchasesOffering } from 'react-native-purchases';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '../../components/ui';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
 import {
@@ -234,47 +235,40 @@ export default function PaywallScreen() {
 
         <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 16, lineHeight: 18 }}>{t('founderPricingNote')}</Text>
 
-        <Pressable
-          onPress={() => void runPurchase('annual')}
-          disabled={webOrNoKeys || busy !== null || !annualPkg}
-          style={({ pressed }) => ({
-            marginTop: 24,
-            paddingVertical: 18,
-            borderRadius: 14,
-            backgroundColor: colors.primarySolid,
-            alignItems: 'center',
-            opacity: webOrNoKeys || !annualPkg || busy ? 0.5 : pressed ? 0.92 : 1,
-          })}
-          accessibilityRole="button"
-          accessibilityLabel={t('ctaAnnualA11y')}
-        >
-          {busy === 'annual' ? (
-            <ActivityIndicator color={colors.onPrimary} />
-          ) : (
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.onPrimary }}>{t('ctaAnnual')}</Text>
-          )}
-        </Pressable>
+        <View style={{ marginTop: 24 }}>
+          <Button
+            label={t('ctaAnnual')}
+            onPress={() => void runPurchase('annual')}
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={busy === 'annual'}
+            disabled={webOrNoKeys || busy !== null || !annualPkg}
+            accessibilityLabel={t('ctaAnnualA11y')}
+          />
+        </View>
 
-        <Pressable
-          onPress={() => void runPurchase('monthly')}
-          disabled={webOrNoKeys || busy !== null || !monthlyPkg}
-          style={{ marginTop: 14, paddingVertical: 12, alignItems: 'center', opacity: !monthlyPkg ? 0.45 : 1 }}
-          accessibilityRole="button"
-        >
-          {busy === 'monthly' ? (
-            <ActivityIndicator color={colors.primarySolid} />
-          ) : (
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.primarySolid }}>{t('ctaMonthly')}</Text>
-          )}
-        </Pressable>
+        <View style={{ marginTop: 14 }}>
+          <Button
+            label={t('ctaMonthly')}
+            onPress={() => void runPurchase('monthly')}
+            variant="ghost"
+            fullWidth
+            loading={busy === 'monthly'}
+            disabled={webOrNoKeys || busy !== null || !monthlyPkg}
+          />
+        </View>
 
-        <Pressable onPress={() => void onRestore()} disabled={webOrNoKeys || busy !== null} style={{ marginTop: 20, alignItems: 'center' }}>
-          {busy === 'restore' ? (
-            <ActivityIndicator color={colors.inactive} />
-          ) : (
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.inactive }}>{t('restore')}</Text>
-          )}
-        </Pressable>
+        <View style={{ marginTop: 20, alignItems: 'center' }}>
+          <Button
+            label={t('restore')}
+            onPress={() => void onRestore()}
+            variant="ghost"
+            size="sm"
+            loading={busy === 'restore'}
+            disabled={webOrNoKeys || busy !== null}
+          />
+        </View>
       </ScrollView>
     </View>
   );

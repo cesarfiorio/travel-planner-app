@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { Button } from '../../../components/ui';
 import { CurrencyPicker } from '../../../components/CurrencyPicker';
 import { colors } from '../../../constants/colors';
 import { isZeroDecimalCurrency } from '../../../constants/currencies';
@@ -458,26 +459,17 @@ export default function AddExpenseScreen() {
           </>
         ) : null}
 
-        <Pressable
-          onPress={() => void onSubmit()}
-          disabled={isSaving}
-          style={{
-            marginTop: 24,
-            paddingVertical: 16,
-            borderRadius: 14,
-            backgroundColor: colors.primarySolid,
-            alignItems: 'center',
-            opacity: isSaving ? 0.7 : 1,
-          }}
-        >
-          {isSaving ? (
-            <ActivityIndicator color={colors.onPrimary} />
-          ) : (
-            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.onPrimary }}>
-              {isEdit ? t('saveEdit') : t('save')}
-            </Text>
-          )}
-        </Pressable>
+        <View style={{ marginTop: 24 }}>
+          <Button
+            label={isEdit ? t('saveEdit') : t('save')}
+            onPress={() => void onSubmit()}
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={isSaving}
+            disabled={isSaving}
+          />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

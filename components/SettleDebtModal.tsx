@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
+
+import { Button } from './ui';
 
 import { colors } from '../constants/colors';
 import type { SimplifiedDebt } from '../lib/utils/splitCalculator';
@@ -53,34 +55,15 @@ export function SettleDebtModal({
           <Text style={{ fontSize: 15, color: colors.text, lineHeight: 22, marginBottom: 20 }}>
             {t('settleConfirmBody', { amount: amountLabel, name: creditorName })}
           </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
-            <Pressable
-              onPress={onClose}
-              disabled={confirming}
-              style={{ paddingVertical: 12, paddingHorizontal: 16 }}
-              accessibilityRole="button"
-            >
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.inactive }}>{t('cancel')}</Text>
-            </Pressable>
-            <Pressable
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, alignItems: 'center' }}>
+            <Button label={t('cancel')} onPress={onClose} variant="ghost" disabled={confirming} />
+            <Button
+              label={t('confirmSettle')}
               onPress={onConfirm}
+              variant="primary"
+              loading={confirming}
               disabled={confirming}
-              style={{
-                paddingVertical: 12,
-                paddingHorizontal: 18,
-                borderRadius: 12,
-                backgroundColor: colors.primarySolid,
-                minWidth: 100,
-                alignItems: 'center',
-              }}
-              accessibilityRole="button"
-            >
-              {confirming ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.onPrimary }}>{t('confirmSettle')}</Text>
-              )}
-            </Pressable>
+            />
           </View>
         </Pressable>
       </Pressable>

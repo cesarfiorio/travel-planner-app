@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { Button } from '../../components/ui';
 import { BalanceSummary } from '../../components/BalanceSummary';
 import { ExpenseItem } from '../../components/ExpenseItem';
 import { LockedBanner } from '../../components/LockedBanner';
@@ -265,27 +266,15 @@ export default function ExpensesScreen() {
           {t('screenTitle')}
         </Text>
         <PlanGate requires="explorer" fallback={null}>
-          <Pressable
+          <Button
+            label={t('exportReport')}
             onPress={() => void handleExportPdf()}
+            variant="outline"
+            size="sm"
+            loading={exportingPdf}
             disabled={exportingPdf || expenses.length === 0}
-            style={({ pressed }) => ({
-              paddingVertical: 8,
-              paddingHorizontal: 10,
-              borderRadius: 10,
-              backgroundColor: '#FFF3EC',
-              opacity: pressed ? 0.88 : exportingPdf || expenses.length === 0 ? 0.45 : 1,
-            })}
-            accessibilityRole="button"
             accessibilityLabel={t('exportReport')}
-          >
-            {exportingPdf ? (
-              <ActivityIndicator size="small" color={colors.primarySolid} />
-            ) : (
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primarySolid }} numberOfLines={1}>
-                {t('exportReport')}
-              </Text>
-            )}
-          </Pressable>
+          />
         </PlanGate>
         <TripSwitcher variant="icon" />
       </View>
@@ -305,12 +294,7 @@ export default function ExpensesScreen() {
       ) : isError ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <Text style={{ color: colors.inactive, textAlign: 'center', marginBottom: 16 }}>{t('errorLoad')}</Text>
-          <Pressable
-            onPress={() => void refetch()}
-            style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: colors.primarySolid, borderRadius: 12 }}
-          >
-            <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{t('retry')}</Text>
-          </Pressable>
+          <Button label={t('retry')} onPress={() => void refetch()} variant="primary" />
         </View>
       ) : (
         <FlatList

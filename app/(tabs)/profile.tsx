@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
+import { Button } from '../../components/ui';
 import { LanguagePicker } from '../../components/LanguagePicker';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
@@ -271,42 +272,27 @@ export default function ProfileScreen() {
         <LanguagePicker />
       </View>
 
-      <Pressable
-        onPress={() => router.push('/(stack)/paywall')}
-        style={({ pressed }) => ({
-          marginTop: 20,
-          paddingVertical: 14,
-          borderRadius: 12,
-          backgroundColor: '#111827',
-          opacity: pressed ? 0.9 : 1,
-          alignItems: 'center',
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('profile:manageSubscriptionA11y')}
-      >
-        <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 16 }}>
-          {t('profile:manageSubscription')}
-        </Text>
-      </Pressable>
+      <View style={{ marginTop: 20 }}>
+        <Button
+          label={t('profile:manageSubscription')}
+          onPress={() => router.push('/(stack)/paywall')}
+          variant="outline"
+          size="lg"
+          fullWidth
+          accessibilityLabel={t('profile:manageSubscriptionA11y')}
+        />
+      </View>
 
-      <Pressable
-        onPress={() => void signOut()}
-        style={({ pressed }) => ({
-          marginTop: 16,
-          paddingVertical: 14,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: colors.border,
-          alignItems: 'center',
-          opacity: pressed ? 0.85 : 1,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('profile:signOutA11y')}
-      >
-        <Text style={{ fontWeight: '600', color: colors.text, fontSize: 16 }}>
-          {t('profile:signOut')}
-        </Text>
-      </Pressable>
+      <View style={{ marginTop: 16 }}>
+        <Button
+          label={t('profile:signOut')}
+          onPress={() => void signOut()}
+          variant="destructive"
+          size="lg"
+          fullWidth
+          accessibilityLabel={t('profile:signOutA11y')}
+        />
+      </View>
 
       <View
         style={{

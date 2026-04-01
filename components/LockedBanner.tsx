@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
+import { Button } from './ui';
 
 type LockedBannerProps = {
   message: string;
@@ -43,22 +44,15 @@ export function LockedBanner({ message, featureId, showUnlock = true }: LockedBa
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 }}>{title}</Text>
           {showUnlock ? (
-            <Pressable
-              onPress={openPaywall}
-              style={({ pressed }) => ({
-                alignSelf: 'flex-start',
-                marginTop: 8,
-                paddingVertical: 10,
-                paddingHorizontal: 14,
-                borderRadius: 10,
-                backgroundColor: colors.primarySolid,
-                opacity: pressed ? 0.9 : 1,
-              })}
-              accessibilityRole="button"
-              accessibilityLabel={t('unlockExplorerA11y')}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.onPrimary }}>{t('unlockExplorer')}</Text>
-            </Pressable>
+            <View style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+              <Button
+                label={t('unlockExplorer')}
+                onPress={openPaywall}
+                variant="primary"
+                size="sm"
+                accessibilityLabel={t('unlockExplorerA11y')}
+              />
+            </View>
           ) : null}
         </View>
       </View>

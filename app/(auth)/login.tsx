@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
+import { Button } from '../../components/ui';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../lib/hooks/useAuth';
 import {
@@ -96,8 +96,6 @@ export default function LoginScreen() {
     );
   }
 
-  const disabled = busyProvider !== null;
-
   return (
     <ScrollView
       contentContainerStyle={{
@@ -138,67 +136,33 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      <Pressable
-        onPress={runGoogle}
-        disabled={disabled}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          paddingVertical: 14,
-          paddingHorizontal: 16,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: '#dadce0',
-          backgroundColor: '#ffffff',
-          opacity: disabled ? 0.65 : pressed ? 0.9 : 1,
-          marginBottom: 12,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('auth:continueWithGoogleA11y')}
-      >
-        {busyProvider === 'google' ? (
-          <ActivityIndicator color="#4285F4" />
-        ) : (
-          <>
-            <Ionicons name="logo-google" size={22} color="#4285F4" />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#3c4043' }}>
-              {t('auth:continueWithGoogle')}
-            </Text>
-          </>
-        )}
-      </Pressable>
+      <View style={{ marginBottom: 12 }}>
+        <Button
+          label={t('auth:continueWithGoogle')}
+          onPress={runGoogle}
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={busyProvider === 'google'}
+          disabled={busyProvider !== null}
+          leftIcon={<Ionicons name="logo-google" size={22} color="#4285F4" />}
+          accessibilityLabel={t('auth:continueWithGoogleA11y')}
+        />
+      </View>
 
-      <Pressable
-        onPress={runApple}
-        disabled={disabled}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          paddingVertical: 14,
-          paddingHorizontal: 16,
-          borderRadius: 12,
-          backgroundColor: '#000000',
-          opacity: disabled ? 0.65 : pressed ? 0.88 : 1,
-          marginBottom: 24,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('auth:continueWithAppleA11y')}
-      >
-        {busyProvider === 'apple' ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <>
-            <Ionicons name="logo-apple" size={24} color="#ffffff" />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#ffffff' }}>
-              {t('auth:continueWithApple')}
-            </Text>
-          </>
-        )}
-      </Pressable>
+      <View style={{ marginBottom: 24 }}>
+        <Button
+          label={t('auth:continueWithApple')}
+          onPress={runApple}
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={busyProvider === 'apple'}
+          disabled={busyProvider !== null}
+          leftIcon={<Ionicons name="logo-apple" size={24} color="#ffffff" />}
+          accessibilityLabel={t('auth:continueWithAppleA11y')}
+        />
+      </View>
 
       <Text
         style={{

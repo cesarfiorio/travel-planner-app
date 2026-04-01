@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '../../components/ui';
 import { CurrencyPicker } from '../../components/CurrencyPicker';
 import { colors } from '../../constants/colors';
 import { defaultCurrencyForLocale } from '../../constants/currencies';
@@ -208,31 +208,17 @@ export default function NewTripScreen() {
         <CurrencyPicker value={defaultCurrency} onChange={setDefaultCurrency} />
 
         {Platform.OS === 'android' ? (
-          <Pressable
-            onPress={submit}
-            disabled={createTrip.isPending}
-            style={({ pressed }) => ({
-              marginTop: 24,
-              paddingVertical: 16,
-              borderRadius: 12,
-              backgroundColor: '#EA580C',
-              alignItems: 'center',
-              borderWidth: 2,
-              borderColor: '#C2410C',
-              opacity: createTrip.isPending ? 0.7 : pressed ? 0.92 : 1,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 3,
-              elevation: 4,
-            })}
-          >
-            {createTrip.isPending ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '800' }}>{t('trips:createNewTripBanner')}</Text>
-            )}
-          </Pressable>
+          <View style={{ marginTop: 24 }}>
+            <Button
+              label={t('trips:createNewTripBanner')}
+              onPress={submit}
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={createTrip.isPending}
+              disabled={createTrip.isPending}
+            />
+          </View>
         ) : null}
       </ScrollView>
 
@@ -274,29 +260,16 @@ export default function NewTripScreen() {
               <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 18 }}>{t('common:save')}</Text>
             </Pressable>
           ) : (
-            <Pressable
+            <Button
+              label={t('trips:createNewTripBanner')}
               onPress={submit}
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={createTrip.isPending}
               disabled={createTrip.isPending}
-              style={({ pressed }) => ({
-                paddingVertical: 16,
-                borderRadius: 12,
-                backgroundColor: '#EA580C',
-                borderWidth: 2,
-                borderColor: '#C2410C',
-                alignItems: 'center',
-                opacity: createTrip.isPending ? 0.7 : pressed ? 0.9 : 1,
-              })}
-              accessibilityRole="button"
               accessibilityLabel={t('trips:createNewTripBanner')}
-            >
-              {createTrip.isPending ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '800', textAlign: 'center' }}>
-                  {t('trips:createNewTripBanner')}
-                </Text>
-              )}
-            </Pressable>
+            />
           )}
         </View>
       ) : null}

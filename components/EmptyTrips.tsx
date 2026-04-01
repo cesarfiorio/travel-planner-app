@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
+import { Button } from './ui';
 
 type Props = {
   onCreatePress: () => void;
@@ -67,30 +68,9 @@ export function EmptyTrips({ onCreatePress }: Props) {
       >
         {t('emptyTapBelow')}
       </Text>
-      <Pressable
-        onPress={onCreatePress}
-        style={({ pressed }) => ({
-          minWidth: 260,
-          paddingVertical: 16,
-          paddingHorizontal: 32,
-          borderRadius: 14,
-          backgroundColor: colors.primarySolid,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: pressed ? 0.92 : 1,
-          borderWidth: 2,
-          borderColor: '#7C2D12',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
-          elevation: 6,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('emptyCta')}
-      >
-        <Text style={{ color: colors.onPrimary, fontSize: 18, fontWeight: '700' }}>{t('emptyCta')}</Text>
-      </Pressable>
+      <View style={{ alignSelf: 'center' }}>
+        <Button label={t('emptyCta')} onPress={onCreatePress} variant="primary" size="lg" accessibilityLabel={t('emptyCta')} />
+      </View>
     </View>
   );
 }
