@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { profileHasExplorerAccess } from '../planAccess';
+import { logger } from '../utils/logger';
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 
@@ -125,9 +126,7 @@ export function useSubscription() {
           await queryClient.invalidateQueries({ queryKey: customerInfoQueryKey(userId) });
         }
       } catch (e) {
-        if (__DEV__) {
-          console.warn('[useSubscription] logIn failed', e);
-        }
+        logger.debug('[useSubscription] logIn failed', e);
       }
     })();
     return () => {

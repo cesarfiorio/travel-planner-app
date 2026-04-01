@@ -13,7 +13,7 @@
   "newTitle": "New Trip",
   "close": "Close",
   "closeA11y": "Close",
-  "fieldTripName": "",
+  "fieldTripName": "Trip name",
   "fieldTripNamePlaceholder": "e.g. Summer in Lisbon",
   "fieldDestination": "Destination",
   "fieldDestinationPlaceholder": "City, region, or country",

@@ -20,6 +20,7 @@ import {
   signInWithApple,
   signInWithGoogle,
 } from '../../lib/supabase/auth';
+import { logger } from '../../lib/utils/logger';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -31,7 +32,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (__DEV__) {
-      console.log('[RouteFlow] OAuth redirect URI (add to Supabase):', getOAuthRedirectUri());
+      logger.debug('[RouteFlow] OAuth redirect URI (add to Supabase):', getOAuthRedirectUri());
     }
   }, []);
 

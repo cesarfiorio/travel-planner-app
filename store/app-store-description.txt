@@ -1,0 +1,36 @@
+Plan group trips, split every expense fairly, and share routes with friends—all in one beautiful app. RouteFlow is built for travelers who want less spreadsheet chaos and more time exploring.
+
+WHY ROUTEFLOW
+• Shared itineraries — Build day-by-day plans with places everyone can see.
+• Splitwise-style expenses — Log who paid, split equally or custom shares, settle balances in taps.
+• Trip memories — Capture mood, spending, and highlights; optional shareable trip cards.
+• Community routes — Publish tips and routes when you finish a trip (optional).
+• PDF reports — Export expense summaries for groups or reimbursements.
+• Works offline for core trip data you’ve already loaded.
+
+PERFECT FOR
+Friends weekends, bachelor trips, family holidays, digital nomad squads, and any group that shares costs. Whether you’re in Lisbon, Tokyo, or a road trip across your home country, RouteFlow keeps the plan and the money straight.
+
+SUBSCRIPTION
+RouteFlow Explorer unlocks unlimited trips, full place discovery, unlimited expense splitting, community publishing, trip memories & journal, shareable cards, PDF exports, and offline access. Subscriptions are billed via your App Store account and renew unless cancelled at least 24 hours before the end of the period.
+
+PRIVACY & TRUST
+We use industry-standard providers for sign-in and sync. See our privacy policy at routeflow.app/privacy.
+
+Download RouteFlow and make your next group trip effortless—from first idea to final split.
+
+FEATURES IN DEPTH
+Itinerary planning: Add destinations, reorder stops, and mark places as planned, visited, or skipped so the whole group sees progress in real time. Expense splitting: Create expenses in the trip currency, assign payers and participants, use equal splits or custom amounts, and see who owes whom at a glance—like Splitwise, but built around trips. Settlement tracking helps you record when someone pays someone back so balances stay honest.
+
+Trip hub: Switch between trips quickly, see status at a glance (planning, active, completed), and pick up where you left off. Place discovery: Search and save places with rich details so you are not juggling five browser tabs. Finish trip flow: When the adventure ends, wrap up with optional community sharing, travel style tags, and a memory snapshot you can revisit.
+
+Group travel planner keywords you care about: trip planner, group travel, split expenses, travel itinerary, expense tracker, travel app, route planner, travel journal, trip organizer, budget travel, friends trip, family vacation planner, shared itinerary, travel split, cost splitting.
+
+SUPPORT
+We improve RouteFlow continuously. If something breaks or you have a feature idea, reach out from the app or via our site so we can prioritize what travelers need next.
+
+GETTING STARTED
+Create a trip, invite friends as members, drop in your first places, and add an expense the moment someone grabs the taxi or pays for dinner. RouteFlow remembers the math so you can focus on maps, photos, and the next café. When you are ready to share what worked, publish a route to the community—or keep everything private. Explorer members get unlimited trips, full discovery, PDF exports, memories, and offline access for the data you have already synced.
+
+FREQUENTLY ASKED
+Does RouteFlow work without internet? Core data you have loaded remains available offline; some discovery and sync features need a connection. Can I use it for work trips? Yes—PDF expense reports help with reimbursement. Is my data secure? Sign-in uses trusted providers; trip data is stored with modern cloud infrastructure. See routeflow.app/privacy for details.

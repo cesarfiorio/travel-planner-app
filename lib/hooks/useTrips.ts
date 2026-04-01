@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Tables } from '../supabase/types';
 
+import { logger } from '../utils/logger';
+
 import { useAuth } from './useAuth';
 import { completedTripsCountKey } from './useProfile';
 
@@ -112,9 +114,7 @@ export function useMyTrips() {
         .order('updated_at', { ascending: false });
 
       if (error) {
-        if (__DEV__) {
-          console.error('[RouteFlow] useMyTrips trips:', error);
-        }
+        logger.error('[RouteFlow] useMyTrips trips', error);
         throw error;
       }
       const tripsList = tripsRaw ?? [];
@@ -129,9 +129,7 @@ export function useMyTrips() {
         .in('trip_id', tripIds);
 
       if (membersError) {
-        if (__DEV__) {
-          console.error('[RouteFlow] useMyTrips trip_members:', membersError);
-        }
+        logger.error('[RouteFlow] useMyTrips trip_members', membersError);
         throw membersError;
       }
 

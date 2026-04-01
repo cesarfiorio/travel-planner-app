@@ -10,6 +10,7 @@ import { queryClient } from '../query/queryClient';
 import { useAppStore } from '../store/appStore';
 import { useAuthStore } from '../store/authStore';
 import { hasSupabaseEnv, supabase } from '../supabase';
+import { logger } from '../utils/logger';
 
 /** Deep link path registered with Expo; add matching URLs in Supabase Auth → URL Configuration. */
 export const AUTH_CALLBACK_PATH = 'auth/callback';
@@ -93,19 +94,19 @@ export async function signInWithGoogle(): Promise<void> {
   }
 
   if (__DEV__) {
-    console.log('[RouteFlow] OAuth redirectTo (must match Supabase Redirect URLs exactly):', redirectTo);
+    logger.debug('[RouteFlow] OAuth redirectTo (must match Supabase Redirect URLs exactly):', redirectTo);
     try {
       const parsed = new URL(data.url);
-      console.log('[RouteFlow] OAuth opening:', parsed.origin + parsed.pathname);
+      logger.debug('[RouteFlow] OAuth opening:', parsed.origin + parsed.pathname);
     } catch {
-      console.log('[RouteFlow] OAuth URL prefix:', data.url.slice(0, 96));
+      logger.debug('[RouteFlow] OAuth URL prefix:', data.url.slice(0, 96));
     }
   }
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
 
   if (__DEV__) {
-    console.log('[RouteFlow] OAuth browser closed:', result.type);
+    logger.debug('[RouteFlow] OAuth browser closed:', result.type);
   }
 
   if (result.type === 'cancel' || result.type === 'dismiss') {
