@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -14,8 +15,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { Button } from '../../components/ui';
 import { CurrencyPicker } from '../../components/CurrencyPicker';
 import { colors } from '../../constants/colors';
 import { defaultCurrencyForLocale } from '../../constants/currencies';
@@ -118,11 +117,7 @@ export default function NewTripScreen() {
     );
   };
 
-  const iosPickerOpen = Platform.OS === 'ios' && (showStart || showEnd);
-  const scrollBottomPad =
-    Platform.OS === 'ios'
-      ? Math.max(insets.bottom, 12) + (iosPickerOpen ? 58 : 32)
-      : 40;
+  const scrollBottomPad = Math.max(insets.bottom, 12) + 24;
 
   return (
     <KeyboardAvoidingView
@@ -140,7 +135,20 @@ export default function NewTripScreen() {
             <Text style={{ fontSize: 17, fontWeight: '600', color: colors.primary }}>{t('trips:close')}</Text>
           </Pressable>
           <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>{t('trips:newTitle')}</Text>
-          <View style={{ width: 48 }} />
+          <Pressable
+            onPress={submit}
+            disabled={createTrip.isPending}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t('common:save')}
+            style={{ opacity: createTrip.isPending ? 0.5 : 1 }}
+          >
+            {createTrip.isPending ? (
+              <ActivityIndicator size="small" color={colors.primarySolid} />
+            ) : (
+              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.primarySolid }}>{t('common:save')}</Text>
+            )}
+          </Pressable>
         </View>
       </View>
       <ScrollView
@@ -207,47 +215,6 @@ export default function NewTripScreen() {
         <Text style={styles.label}>{t('trips:fieldCurrency')}</Text>
         <CurrencyPicker value={defaultCurrency} onChange={setDefaultCurrency} />
       </ScrollView>
-
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: Math.max(insets.bottom, 12) + 10,
-          backgroundColor: colors.background,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: colors.border,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-          elevation: 10,
-        }}
-      >
-        {iosPickerOpen ? (
-          <Button
-            label={t('common:save')}
-            onPress={() => {
-              setShowStart(false);
-              setShowEnd(false);
-            }}
-            variant="primary"
-            size="lg"
-            fullWidth
-            accessibilityLabel={t('common:save')}
-          />
-        ) : (
-          <Button
-            label={t('trips:createNewTripBanner')}
-            onPress={submit}
-            variant="primary"
-            size="lg"
-            fullWidth
-            loading={createTrip.isPending}
-            disabled={createTrip.isPending}
-            accessibilityLabel={t('trips:createNewTripBanner')}
-          />
-        )}
-      </View>
     </KeyboardAvoidingView>
   );
 }
