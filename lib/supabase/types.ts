@@ -555,6 +555,39 @@ export type Database = {
           },
         ]
       }
+      visited_countries: {
+        Row: {
+          id: string
+          user_id: string
+          country_code: string
+          country_name: string
+          first_visit_date: string | null
+          trip_id: string | null
+          is_manual: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          country_code: string
+          country_name: string
+          first_visit_date?: string | null
+          trip_id?: string | null
+          is_manual?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          country_code?: string
+          country_name?: string
+          first_visit_date?: string | null
+          trip_id?: string | null
+          is_manual?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       trips: {
         Row: {
           created_at: string

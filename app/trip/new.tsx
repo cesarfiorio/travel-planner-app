@@ -22,6 +22,7 @@ import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../../lib/hooks/useSubscription';
 import { useCreateTrip, useMyTrips } from '../../lib/hooks/useTrips';
+import { useAutoMarkCountry } from '../../lib/hooks/useVisitedCountries';
 import { tripRowToSnapshot, useAppStore } from '../../lib/store/appStore';
 
 function toYmd(d: Date): string {
@@ -44,6 +45,7 @@ export default function NewTripScreen() {
   const { data: trips = [] } = useMyTrips();
   const { isExplorer } = useSubscription();
   const createTrip = useCreateTrip();
+  const autoMark = useAutoMarkCountry();
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
 
   const [name, setName] = useState('');
@@ -107,6 +109,7 @@ export default function NewTripScreen() {
       },
       {
         onSuccess: (row) => {
+          autoMark(destination.trim() || null, row.id, toYmd(stripTime(startDate)));
           setActiveTrip(tripRowToSnapshot(row));
           router.replace('/(tabs)');
         },

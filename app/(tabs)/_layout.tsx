@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/colors';
 
 export default function TabsLayout() {
-  const { t } = useTranslation(['explore', 'trips', 'expenses', 'community', 'profile']);
+  const { t } = useTranslation(['explore', 'trips', 'expenses', 'community', 'profile', 'map']);
 
   return (
     <Tabs
@@ -49,6 +49,15 @@ export default function TabsLayout() {
           title: t('expenses:tabTitle'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: t('map:tabTitle'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="globe-outline" size={size} color={color} />
           ),
         }}
       />
