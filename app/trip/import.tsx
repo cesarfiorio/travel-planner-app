@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/ui';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
+import type { TravelStyleId } from '../../lib/community/constants';
 import { useCanImport, useQuickImportTrip } from '../../lib/hooks/useImportTrip';
 import { useSubscription } from '../../lib/hooks/useSubscription';
 import { countryFlag, guessCountryFromDestination, getCountry } from '../../lib/utils/countryUtils';
@@ -28,15 +29,15 @@ const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-type TravelWith = 'solo' | 'partner' | 'friends' | 'family' | 'group';
-const TRAVEL_WITH: TravelWith[] = ['solo', 'partner', 'friends', 'family', 'group'];
+/** Display order: matches friendly labels in `trips:importTravelStyle_*`. */
+const IMPORT_TRAVEL_STYLES: TravelStyleId[] = ['solo', 'couple', 'group', 'family', 'backpacker'];
 
-const TRAVEL_WITH_EMOJI: Record<TravelWith, string> = {
+const TRAVEL_STYLE_EMOJI: Record<TravelStyleId, string> = {
   solo: '🧳',
-  partner: '💑',
-  friends: '👯',
+  couple: '💑',
+  group: '👯',
   family: '👨‍👩‍👧‍👦',
-  group: '🧑‍🤝‍🧑',
+  backpacker: '🎒',
 };
 
 function currentYear(): number {
@@ -63,7 +64,7 @@ export default function ImportTripScreen() {
   const [destination, setDestination] = useState('');
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(currentYear());
-  const [travelWith, setTravelWith] = useState<TravelWith>('friends');
+  const [travelStyle, setTravelStyle] = useState<TravelStyleId>('group');
   const [tip, setTip] = useState('');
   const [shareToCommunity, setShareToCommunity] = useState(true);
 
@@ -86,7 +87,7 @@ export default function ImportTripScreen() {
       {
         destination: trimDest,
         monthYear: `${month + 1}/${year}`,
-        travelWith,
+        travelWith: travelStyle,
         tip: tip.trim(),
         shareToCommunity,
       },
@@ -192,12 +193,12 @@ export default function ImportTripScreen() {
 
         <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{t('importWho')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-          {TRAVEL_WITH.map((tw) => {
-            const sel = travelWith === tw;
+          {IMPORT_TRAVEL_STYLES.map((style) => {
+            const sel = travelStyle === style;
             return (
               <Pressable
-                key={tw}
-                onPress={() => setTravelWith(tw)}
+                key={style}
+                onPress={() => setTravelStyle(style)}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -210,8 +211,10 @@ export default function ImportTripScreen() {
                   borderColor: colors.primarySolid,
                 }}
               >
-                <Text style={{ fontSize: 16 }}>{TRAVEL_WITH_EMOJI[tw]}</Text>
-                <Text style={{ fontSize: 14, fontWeight: sel ? '700' : '500', color: colors.text }}>{t(`importWith_${tw}`)}</Text>
+                <Text style={{ fontSize: 16 }}>{TRAVEL_STYLE_EMOJI[style]}</Text>
+                <Text style={{ fontSize: 14, fontWeight: sel ? '700' : '500', color: colors.text }}>
+                  {t(`importTravelStyle_${style}`)}
+                </Text>
               </Pressable>
             );
           })}

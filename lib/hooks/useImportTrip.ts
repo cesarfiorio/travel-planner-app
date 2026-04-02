@@ -11,11 +11,13 @@ import { myTripsQueryKey } from './useTrips';
 import { visitedCountriesKey } from './useVisitedCountries';
 
 const IMPORT_LIMIT_PER_DAY = 10;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type QuickImportInput = {
   destination: string;
   monthYear: string;
-  travelWith: 'solo' | 'partner' | 'friends' | 'family' | 'group';
+  /** DB `travel_style` value from Quick Log, or legacy importer keys (`partner` / `friends`). */
+  travelWith: TravelStyleId | 'partner' | 'friends';
   tip: string;
   shareToCommunity: boolean;
   travelStyle?: TravelStyleId | null;
@@ -29,6 +31,20 @@ export type FullImportInput = QuickImportInput & {
   currency: string;
   mood: 'amazing' | 'great' | 'good' | 'mixed';
 };
+
+/** Normalize UI / legacy keys to `community_routes.travel_style` CHECK values. */
+export function mapTravelStyle(raw: string): string {
+  const map: Record<string, string> = {
+    partner: 'couple',
+    friends: 'group',
+    solo: 'solo',
+    family: 'family',
+    group: 'group',
+    backpacker: 'backpacker',
+    couple: 'couple',
+  };
+  return map[raw] ?? 'solo';
+}
 
 export const importCountKey = (userId: string) => ['importCount', userId] as const;
 
@@ -115,10 +131,10 @@ export function useQuickImportTrip() {
           title: input.destination.trim(),
           destination: input.destination.trim(),
           tip: input.tip.trim(),
-          travel_style: input.travelStyle ?? input.travelWith,
+          travel_style: mapTravelStyle(input.travelStyle ?? input.travelWith),
           is_public: true,
           published_at: now,
-          duration_days: Math.max(1, new Date(end).getDate() - new Date(start).getDate() + 1),
+          duration_days: Math.max(1, Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / DAY_MS)),
         });
       }
 
@@ -203,14 +219,12 @@ export function useFullImportTrip() {
           title: input.destination.trim(),
           destination: input.destination.trim(),
           tip: input.tip.trim(),
-          travel_style: input.travelStyle ?? input.travelWith,
+          travel_style: mapTravelStyle(input.travelStyle ?? input.travelWith),
           is_public: true,
           published_at: now,
           duration_days: Math.max(
             1,
-            Math.ceil(
-              (new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (24 * 60 * 60 * 1000),
-            ),
+            Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / DAY_MS),
           ),
         });
       }
