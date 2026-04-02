@@ -1,5 +1,7 @@
+import { getCurrency } from '../../constants/currencies';
+
 /**
- * Pure expense math. Amounts are always integer cents.
+ * Pure expense math. Amounts are stored as integer minor units (cents for USD; whole yen for JPY, etc.).
  *
  * EXPENSE: someone paid for the group; splits say how much each member owes the payer.
  * SETTLEMENT: marking is_settled on a split means that share was repaid to the payer — not a new expense.
@@ -31,10 +33,20 @@ export type ExpenseForSettlementPick = {
   }> | null;
 };
 
-/** Convert a decimal currency amount (e.g. 42.5 dollars) to cents. */
-export function toCents(amount: number): number {
+/** Stored minor units → display amount (major units for 2-decimal currencies). */
+export function fromCents(cents: number, currencyCode?: string): number {
+  const c = getCurrency(currencyCode ?? 'USD');
+  return c.decimalDigits === 0 ? cents : cents / 100;
+}
+
+/** User-entered amount → stored minor units. */
+export function toCents(amount: number, currencyCode?: string): number {
   if (!Number.isFinite(amount)) {
     return 0;
+  }
+  const c = getCurrency(currencyCode ?? 'USD');
+  if (c.decimalDigits === 0) {
+    return Math.round(amount);
   }
   return Math.round(amount * 100);
 }

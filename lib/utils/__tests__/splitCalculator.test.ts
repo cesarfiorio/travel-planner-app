@@ -1,7 +1,9 @@
+import { formatAmount } from '../../../constants/currencies';
 import {
   calculateBalances,
   calculateEqualSplits,
   expenseIdsForSettlingDebt,
+  fromCents,
   simplifyDebts,
   sumBalances,
   toCents,
@@ -18,6 +20,27 @@ describe('toCents', () => {
   it('handles typical float noise', () => {
     expect(toCents(33.33 * 3)).toBe(9999);
     expect(toCents(10.2)).toBe(1020);
+  });
+
+  it('uses whole minor units for zero-decimal currencies', () => {
+    expect(toCents(1000, 'JPY')).toBe(1000);
+    expect(toCents(1500, 'CLP')).toBe(1500);
+  });
+});
+
+describe('fromCents', () => {
+  it('inverts toCents for USD and JPY', () => {
+    expect(fromCents(4250, 'USD')).toBe(42.5);
+    expect(fromCents(1000, 'JPY')).toBe(1000);
+  });
+});
+
+describe('formatAmount', () => {
+  it('formats minor units for zero-decimal and two-decimal currencies', () => {
+    expect(toCents(1000, 'JPY')).toBe(1000);
+    expect(toCents(42.5, 'USD')).toBe(4250);
+    expect(formatAmount(1000, 'JPY')).toBe('¥1000');
+    expect(formatAmount(4250, 'USD')).toBe('$42.50');
   });
 });
 
