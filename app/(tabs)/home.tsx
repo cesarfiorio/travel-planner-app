@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   RefreshControl,
@@ -46,6 +47,14 @@ export default function HomeTripsScreen() {
       return;
     }
     router.push('/trip/new');
+  };
+
+  const showTripOptions = () => {
+    Alert.alert(t('trips:fabOptionsTitle'), undefined, [
+      { text: t('trips:fabNewTrip'), onPress: goNewTrip },
+      { text: t('trips:fabLogPast'), onPress: () => router.push('/trip/import') },
+      { text: t('common:cancel'), style: 'cancel' },
+    ]);
   };
 
   const fabBottom = useMemo(() => Math.max(insets.bottom, 8) + 14, [insets.bottom]);
@@ -108,7 +117,7 @@ export default function HomeTripsScreen() {
         <View style={{ flex: 1 }}>
           <EmptyTrips onCreatePress={goNewTrip} />
         </View>
-        <FabOverlay onPress={goNewTrip} bottom={fabBottom} />
+        <FabOverlay onPress={goNewTrip} onLongPress={showTripOptions} bottom={fabBottom} />
       </View>
     );
   }
@@ -171,13 +180,13 @@ export default function HomeTripsScreen() {
             </>
           ) : null}
         </ScrollView>
-        <FabOverlay onPress={goNewTrip} bottom={fabBottom} />
+        <FabOverlay onPress={goNewTrip} onLongPress={showTripOptions} bottom={fabBottom} />
       </View>
     </View>
   );
 }
 
-function FabOverlay({ onPress, bottom }: { onPress: () => void; bottom: number }) {
+function FabOverlay({ onPress, onLongPress, bottom }: { onPress: () => void; onLongPress?: () => void; bottom: number }) {
   const { t } = useTranslation('trips');
 
   return (
@@ -218,6 +227,7 @@ function FabOverlay({ onPress, bottom }: { onPress: () => void; bottom: number }
         >
           <Pressable
             onPress={onPress}
+            onLongPress={onLongPress}
             style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
