@@ -21,6 +21,31 @@ import {
   useMarkRouteUsed,
 } from '../../lib/hooks/useCommunityRoutes';
 
+/** Per-route in-flight counts so concurrent actions on different cards (or stacked on one) stay correct. */
+function usePerRoutePending() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  const begin = useCallback((id: string) => {
+    setCounts((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
+  }, []);
+
+  const end = useCallback((id: string) => {
+    setCounts((m) => {
+      const c = (m[id] ?? 0) - 1;
+      if (c <= 0) {
+        const next = { ...m };
+        delete next[id];
+        return next;
+      }
+      return { ...m, [id]: c };
+    });
+  }, []);
+
+  const isBusy = (id: string) => (counts[id] ?? 0) > 0;
+
+  return { begin, end, isBusy };
+}
+
 export default function CommunityScreen() {
   const { t } = useTranslation('community');
   const insets = useSafeAreaInsets();
@@ -34,6 +59,10 @@ export default function CommunityScreen() {
   const toggleLike = useToggleRouteLike();
   const toggleSave = useToggleRouteSave();
   const markUsed = useMarkRouteUsed();
+
+  const likePending = usePerRoutePending();
+  const savePending = usePerRoutePending();
+  const usedPending = usePerRoutePending();
 
   const routes = useMemo(() => data?.pages.flat() ?? [], [data]);
 
@@ -129,12 +158,30 @@ export default function CommunityScreen() {
           renderItem={({ item }) => (
             <CommunityRouteCard
               route={item}
-              onToggleHeart={() => toggleLike.mutate({ routeId: item.id, liked: item.likedByMe })}
-              onToggleSave={() => toggleSave.mutate({ routeId: item.id, saved: item.savedByMe })}
-              onMarkUsed={() => markUsed.mutate({ routeId: item.id })}
-              heartBusy={toggleLike.isPending}
-              saveBusy={toggleSave.isPending}
-              usedBusy={markUsed.isPending}
+              onToggleHeart={() => {
+                const routeId = item.id;
+                likePending.begin(routeId);
+                toggleLike.mutate(
+                  { routeId, liked: item.likedByMe },
+                  { onSettled: () => likePending.end(routeId) },
+                );
+              }}
+              onToggleSave={() => {
+                const routeId = item.id;
+                savePending.begin(routeId);
+                toggleSave.mutate(
+                  { routeId, saved: item.savedByMe },
+                  { onSettled: () => savePending.end(routeId) },
+                );
+              }}
+              onMarkUsed={() => {
+                const routeId = item.id;
+                usedPending.begin(routeId);
+                markUsed.mutate({ routeId }, { onSettled: () => usedPending.end(routeId) });
+              }}
+              heartBusy={likePending.isBusy(item.id)}
+              saveBusy={savePending.isBusy(item.id)}
+              usedBusy={usedPending.isBusy(item.id)}
             />
           )}
           onEndReached={onEndReached}

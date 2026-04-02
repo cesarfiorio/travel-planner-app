@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
 import type { CommunityRouteVm } from '../lib/hooks/useCommunityRoutes';
@@ -100,15 +100,20 @@ export function CommunityRouteCard({
           onPress={(e) => { e.stopPropagation(); onToggleHeart?.(); }}
           disabled={heartBusy || !onToggleHeart}
           hitSlop={8}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 44, minHeight: 32 }}
           accessibilityRole="button"
           accessibilityLabel={t('heartA11y')}
+          accessibilityState={{ busy: Boolean(heartBusy) }}
         >
-          <Ionicons
-            name={route.likedByMe ? 'heart' : 'heart-outline'}
-            size={20}
-            color={route.likedByMe ? '#EF4444' : colors.inactive}
-          />
+          {heartBusy ? (
+            <ActivityIndicator size="small" color={route.likedByMe ? '#EF4444' : colors.inactive} />
+          ) : (
+            <Ionicons
+              name={route.likedByMe ? 'heart' : 'heart-outline'}
+              size={20}
+              color={route.likedByMe ? '#EF4444' : colors.inactive}
+            />
+          )}
           <Text style={{ fontSize: 13, fontWeight: '600', color: route.likedByMe ? '#EF4444' : colors.inactive }}>
             {route.likes_count ?? 0}
           </Text>
@@ -118,15 +123,20 @@ export function CommunityRouteCard({
           onPress={(e) => { e.stopPropagation(); onToggleSave?.(); }}
           disabled={saveBusy || !onToggleSave}
           hitSlop={8}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 44, minHeight: 32 }}
           accessibilityRole="button"
           accessibilityLabel={t('saveA11y')}
+          accessibilityState={{ busy: Boolean(saveBusy) }}
         >
-          <Ionicons
-            name={route.savedByMe ? 'bookmark' : 'bookmark-outline'}
-            size={20}
-            color={route.savedByMe ? '#F59E0B' : colors.inactive}
-          />
+          {saveBusy ? (
+            <ActivityIndicator size="small" color={route.savedByMe ? '#F59E0B' : colors.inactive} />
+          ) : (
+            <Ionicons
+              name={route.savedByMe ? 'bookmark' : 'bookmark-outline'}
+              size={20}
+              color={route.savedByMe ? '#F59E0B' : colors.inactive}
+            />
+          )}
           <Text style={{ fontSize: 13, fontWeight: '600', color: route.savedByMe ? '#F59E0B' : colors.inactive }}>
             {route.saves_count ?? 0}
           </Text>
@@ -136,15 +146,20 @@ export function CommunityRouteCard({
           onPress={(e) => { e.stopPropagation(); if (!route.usedByMe) onMarkUsed?.(); }}
           disabled={usedBusy || route.usedByMe || !onMarkUsed}
           hitSlop={8}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 44, minHeight: 32 }}
           accessibilityRole="button"
           accessibilityLabel={t('usedA11y')}
+          accessibilityState={{ busy: Boolean(usedBusy) }}
         >
-          <Ionicons
-            name={route.usedByMe ? 'checkmark-circle' : 'checkmark-circle-outline'}
-            size={20}
-            color={route.usedByMe ? '#059669' : colors.inactive}
-          />
+          {usedBusy ? (
+            <ActivityIndicator size="small" color={route.usedByMe ? '#059669' : colors.inactive} />
+          ) : (
+            <Ionicons
+              name={route.usedByMe ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              size={20}
+              color={route.usedByMe ? '#059669' : colors.inactive}
+            />
+          )}
           <Text style={{ fontSize: 13, fontWeight: '600', color: route.usedByMe ? '#059669' : colors.inactive }}>
             {route.usedByMe ? t('usedLabel') : t('useRoute')}
           </Text>
