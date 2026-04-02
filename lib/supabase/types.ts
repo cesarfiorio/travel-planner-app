@@ -61,6 +61,18 @@ export type Database = {
           },
         ]
       }
+      route_saves: {
+        Row: { user_id: string; route_id: string; created_at: string }
+        Insert: { user_id: string; route_id: string; created_at?: string }
+        Update: { user_id?: string; route_id?: string; created_at?: string }
+        Relationships: []
+      }
+      route_used: {
+        Row: { user_id: string; route_id: string; trip_id: string | null; created_at: string }
+        Insert: { user_id: string; route_id: string; trip_id?: string | null; created_at?: string }
+        Update: { user_id?: string; route_id?: string; trip_id?: string | null; created_at?: string }
+        Relationships: []
+      }
       community_routes: {
         Row: {
           created_at: string
@@ -71,6 +83,9 @@ export type Database = {
           id: string
           is_public: boolean
           likes_count: number
+          saves_count: number
+          used_count: number
+          score: number
           published_at: string | null
           route_geojson: Json | null
           tags: string[]
@@ -89,6 +104,9 @@ export type Database = {
           id?: string
           is_public?: boolean
           likes_count?: number
+          saves_count?: number
+          used_count?: number
+          score?: number
           published_at?: string | null
           route_geojson?: Json | null
           tags?: string[]
@@ -107,6 +125,9 @@ export type Database = {
           id?: string
           is_public?: boolean
           likes_count?: number
+          saves_count?: number
+          used_count?: number
+          score?: number
           published_at?: string | null
           route_geojson?: Json | null
           tags?: string[]
@@ -642,6 +663,8 @@ export type Database = {
           id: string
           is_public: boolean
           likes_count: number
+          saves_count: number
+          used_count: number
           published_at: string | null
           route_geojson: Json | null
           score: number

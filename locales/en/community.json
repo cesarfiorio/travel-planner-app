@@ -31,5 +31,14 @@
   "bestTip": "Best tip",
   "placesOnRoute": "Places on this route",
   "noPlaces": "No pinned places listed.",
-  "planTripCta": "Plan this trip"
+  "planTripCta": "Plan this trip",
+  "saveA11y": "Save this route",
+  "usedA11y": "Mark as used",
+  "usedLabel": "Used",
+  "useRoute": "Use",
+  "savedCount": "{{count}} saved",
+  "usedCount": "{{count}} used",
+  "socialProof": "and {{count}} others used this",
+  "savedRoutes": "Saved Routes",
+  "savedRoutesEmpty": "Routes you save will appear here."
 }

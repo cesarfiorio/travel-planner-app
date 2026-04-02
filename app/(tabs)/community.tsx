@@ -14,7 +14,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityRouteCard } from '../../components/CommunityRouteCard';
 import { colors } from '../../constants/colors';
 import { TRAVEL_STYLE_IDS } from '../../lib/community/constants';
-import { useCommunityFeed, useToggleRouteLike } from '../../lib/hooks/useCommunityRoutes';
+import {
+  useCommunityFeed,
+  useToggleRouteLike,
+  useToggleRouteSave,
+  useMarkRouteUsed,
+} from '../../lib/hooks/useCommunityRoutes';
 
 export default function CommunityScreen() {
   const { t } = useTranslation('community');
@@ -27,6 +32,8 @@ export default function CommunityScreen() {
     useCommunityFeed(debounced, styleFilter);
 
   const toggleLike = useToggleRouteLike();
+  const toggleSave = useToggleRouteSave();
+  const markUsed = useMarkRouteUsed();
 
   const routes = useMemo(() => data?.pages.flat() ?? [], [data]);
 
@@ -122,10 +129,12 @@ export default function CommunityScreen() {
           renderItem={({ item }) => (
             <CommunityRouteCard
               route={item}
-              onToggleHeart={() =>
-                toggleLike.mutate({ routeId: item.id, liked: item.likedByMe })
-              }
+              onToggleHeart={() => toggleLike.mutate({ routeId: item.id, liked: item.likedByMe })}
+              onToggleSave={() => toggleSave.mutate({ routeId: item.id, saved: item.savedByMe })}
+              onMarkUsed={() => markUsed.mutate({ routeId: item.id })}
               heartBusy={toggleLike.isPending}
+              saveBusy={toggleSave.isPending}
+              usedBusy={markUsed.isPending}
             />
           )}
           onEndReached={onEndReached}

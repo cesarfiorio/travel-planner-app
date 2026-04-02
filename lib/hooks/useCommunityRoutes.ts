@@ -25,6 +25,8 @@ export type CommunityRouteVm = RankedRouteRow & {
   creatorName: string;
   creatorAvatar: string | null;
   likedByMe: boolean;
+  savedByMe: boolean;
+  usedByMe: boolean;
 };
 
 async function fetchProfilesMap(ids: string[]): Promise<Map<string, { display_name: string | null; full_name: string | null; avatar_url: string | null }>> {
@@ -79,13 +81,17 @@ export function useCommunityFeed(search: string, travelStyle: string | null) {
       const profMap = await fetchProfilesMap(creatorIds);
       const routeIds = list.map((r) => r.id);
       let liked = new Set<string>();
+      let saved = new Set<string>();
+      let used = new Set<string>();
       if (uid && routeIds.length > 0) {
-        const { data: likes } = await supabase
-          .from('community_route_likes')
-          .select('route_id')
-          .eq('user_id', uid)
-          .in('route_id', routeIds);
-        liked = new Set((likes ?? []).map((l) => l.route_id));
+        const [likesRes, savesRes, usedRes] = await Promise.all([
+          supabase.from('community_route_likes').select('route_id').eq('user_id', uid).in('route_id', routeIds),
+          supabase.from('route_saves').select('route_id').eq('user_id', uid).in('route_id', routeIds),
+          supabase.from('route_used').select('route_id').eq('user_id', uid).in('route_id', routeIds),
+        ]);
+        liked = new Set((likesRes.data ?? []).map((l) => l.route_id));
+        saved = new Set((savesRes.data ?? []).map((s) => s.route_id));
+        used = new Set((usedRes.data ?? []).map((u) => u.route_id));
       }
       return list.map((r) => {
         const p = profMap.get(r.creator_id);
@@ -95,6 +101,8 @@ export function useCommunityFeed(search: string, travelStyle: string | null) {
           creatorName: name,
           creatorAvatar: p?.avatar_url ?? null,
           likedByMe: liked.has(r.id),
+          savedByMe: saved.has(r.id),
+          usedByMe: used.has(r.id),
         };
       });
     },
@@ -128,19 +136,22 @@ export function useCommunityRoute(routeId: string | undefined) {
       const profMap = await fetchProfilesMap([row.creator_id]);
       const p = profMap.get(row.creator_id);
       const name = p?.display_name?.trim() || p?.full_name?.trim() || 'Traveler';
-      const { data: like } = await supabase
-        .from('community_route_likes')
-        .select('id')
-        .eq('route_id', routeId)
-        .eq('user_id', uid)
-        .maybeSingle();
+      const [likeRes, saveRes, usedRes] = await Promise.all([
+        supabase.from('community_route_likes').select('id').eq('route_id', routeId).eq('user_id', uid).maybeSingle(),
+        supabase.from('route_saves').select('route_id').eq('route_id', routeId).eq('user_id', uid).maybeSingle(),
+        supabase.from('route_used').select('route_id').eq('route_id', routeId).eq('user_id', uid).maybeSingle(),
+      ]);
       const score = scoreFromRouteRow(row);
       return {
         ...(row as RankedRouteRow),
         score,
+        saves_count: (row as Record<string, unknown>).saves_count as number ?? 0,
+        used_count: (row as Record<string, unknown>).used_count as number ?? 0,
         creatorName: name,
         creatorAvatar: p?.avatar_url ?? null,
-        likedByMe: Boolean(like),
+        likedByMe: Boolean(likeRes.data),
+        savedByMe: Boolean(saveRes.data),
+        usedByMe: Boolean(usedRes.data),
       };
     },
   });
@@ -171,6 +182,102 @@ export function useToggleRouteLike() {
     onSuccess: (_d, v) => {
       void queryClient.invalidateQueries({ queryKey: communityFeedQueryKey });
       void queryClient.invalidateQueries({ queryKey: ['communityRoute', v.routeId, uid] });
+    },
+  });
+}
+
+export function useToggleRouteSave() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const uid = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async ({ routeId, saved }: { routeId: string; saved: boolean }) => {
+      if (!supabase || !uid) {
+        throw new Error('Not signed in');
+      }
+      if (saved) {
+        await supabase.from('route_saves').delete().eq('route_id', routeId).eq('user_id', uid);
+      } else {
+        await supabase.from('route_saves').insert({ route_id: routeId, user_id: uid });
+      }
+    },
+    onSuccess: (_d, v) => {
+      void queryClient.invalidateQueries({ queryKey: communityFeedQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['communityRoute', v.routeId, uid] });
+      void queryClient.invalidateQueries({ queryKey: ['savedRoutes', uid] });
+    },
+  });
+}
+
+export function useMarkRouteUsed() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const uid = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async ({ routeId, tripId }: { routeId: string; tripId?: string }) => {
+      if (!supabase || !uid) {
+        throw new Error('Not signed in');
+      }
+      await supabase.from('route_used').upsert(
+        { route_id: routeId, user_id: uid, trip_id: tripId ?? null },
+        { onConflict: 'user_id,route_id' },
+      );
+    },
+    onSuccess: (_d, v) => {
+      void queryClient.invalidateQueries({ queryKey: communityFeedQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['communityRoute', v.routeId, uid] });
+    },
+  });
+}
+
+export const savedRoutesQueryKey = (userId: string) => ['savedRoutes', userId] as const;
+
+export function useSavedRoutes() {
+  const { user } = useAuth();
+  const uid = user?.id ?? '';
+
+  return useQuery({
+    queryKey: savedRoutesQueryKey(uid),
+    enabled: Boolean(uid && hasSupabaseEnv && supabase),
+    queryFn: async (): Promise<CommunityRouteVm[]> => {
+      if (!supabase || !uid) {
+        return [];
+      }
+      const { data: saves } = await supabase
+        .from('route_saves')
+        .select('route_id')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
+      const routeIds = (saves ?? []).map((s) => s.route_id);
+      if (routeIds.length === 0) {
+        return [];
+      }
+      const { data: rows } = await supabase
+        .from('community_routes')
+        .select('*')
+        .in('id', routeIds)
+        .eq('is_public', true);
+      if (!rows?.length) {
+        return [];
+      }
+      const profMap = await fetchProfilesMap(rows.map((r) => r.creator_id));
+      return rows.map((r) => {
+        const p = profMap.get(r.creator_id);
+        const name = p?.display_name?.trim() || p?.full_name?.trim() || 'Traveler';
+        return {
+          ...(r as RankedRouteRow),
+          score: scoreFromRouteRow(r),
+          saves_count: (r as Record<string, unknown>).saves_count as number ?? 0,
+          used_count: (r as Record<string, unknown>).used_count as number ?? 0,
+          creatorName: name,
+          creatorAvatar: p?.avatar_url ?? null,
+          likedByMe: false,
+          savedByMe: true,
+          usedByMe: false,
+        };
+      });
     },
   });
 }
