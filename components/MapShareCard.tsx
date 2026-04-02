@@ -5,10 +5,21 @@ import ViewShot from 'react-native-view-shot';
 import { countryFlag } from '../lib/utils/countryUtils';
 import { WorldMap } from './WorldMap';
 
+export type MapShareCardLabels = {
+  countries: string;
+  continents: string;
+  tagline: string;
+  ofTheWorld: string;
+};
+
 type MapShareCardProps = {
   userName: string;
   visitedCodes: Set<string>;
-  stats: { total: number; continents: number; percentage: number };
+  visitedCount: number;
+  continentCount: number;
+  percentage: number;
+  labels: MapShareCardLabels;
+  footerLine: string;
 };
 
 export type MapShareCardHandle = {
@@ -18,7 +29,10 @@ export type MapShareCardHandle = {
 const MAX_FLAGS = 20;
 
 export const MapShareCard = forwardRef<MapShareCardHandle, MapShareCardProps>(
-  function MapShareCard({ userName, visitedCodes, stats }, ref) {
+  function MapShareCard(
+    { userName, visitedCodes, visitedCount, continentCount, percentage, labels, footerLine },
+    ref,
+  ) {
     const shotRef = useRef<ViewShot>(null);
 
     const capture = useCallback(async (): Promise<string> => {
@@ -33,6 +47,7 @@ export const MapShareCard = forwardRef<MapShareCardHandle, MapShareCardProps>(
     const codes = Array.from(visitedCodes);
     const visibleFlags = codes.slice(0, MAX_FLAGS);
     const overflow = codes.length - MAX_FLAGS;
+    const statsLine = `${visitedCount} ${labels.countries} · ${continentCount} ${labels.continents} · ${percentage}% ${labels.ofTheWorld}`;
 
     return (
       <ViewShot
@@ -52,9 +67,9 @@ export const MapShareCard = forwardRef<MapShareCardHandle, MapShareCardProps>(
           />
         </View>
 
-        <Text style={styles.statsLine}>
-          {stats.total} countries · {stats.continents} continents · {stats.percentage}% of the world
-        </Text>
+        <Text style={styles.statsLine}>{statsLine}</Text>
+
+        <Text style={styles.tagline}>{labels.tagline}</Text>
 
         <View style={styles.flagsRow}>
           {visibleFlags.map((code) => (
@@ -67,7 +82,7 @@ export const MapShareCard = forwardRef<MapShareCardHandle, MapShareCardProps>(
           )}
         </View>
 
-        <Text style={styles.footer}>routeflow.app</Text>
+        <Text style={styles.footer}>{footerLine}</Text>
       </ViewShot>
     );
   },
@@ -95,8 +110,15 @@ const styles = StyleSheet.create({
   statsLine: {
     color: '#FFFFFF',
     fontSize: 11,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  tagline: {
+    color: '#94A3B8',
+    fontSize: 10,
     marginBottom: 10,
     textAlign: 'center',
+    paddingHorizontal: 8,
   },
   flagsRow: {
     flexDirection: 'row',

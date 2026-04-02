@@ -66,6 +66,7 @@ export default function TripMemoryScreen() {
   const insets = useSafeAreaInsets();
   const { t: tm } = useTranslation('memory');
   const { t: tt } = useTranslation('trips');
+  const { t: ts } = useTranslation('share');
   const { user, session } = useAuth();
   const userId = user?.id ?? '';
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
@@ -401,6 +402,15 @@ export default function TripMemoryScreen() {
           placesVisited={memory?.places_visited ?? 0}
           mood={memoryMoodText(memory?.mood ?? 'good', tm)}
           moodEmoji={memory?.mood === 'amazing' ? '😍' : memory?.mood === 'great' ? '🤩' : memory?.mood === 'good' ? '😊' : '🤔'}
+          labels={{
+            wordmark: ts('wordmark'),
+            days: ts('daysLabel'),
+            travelers: ts('travelersLabel'),
+            totalSpent: ts('totalSpent'),
+            placesVisited: ts('placesVisited'),
+            planYourOwn: ts('planYourOwn'),
+            siteDomain: ts('siteDomain'),
+          }}
           format={shareFormat}
         />
       </View>

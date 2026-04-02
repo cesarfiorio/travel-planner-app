@@ -14,5 +14,18 @@
   "shareLink": "Share Link",
   "errorTitle": "Error",
   "errorCapture": "Could not generate the image.",
-  "shareRouteBtn": "Share route"
+  "shareRouteBtn": "Share route",
+  "countriesVisited": "countries visited",
+  "continentsVisited": "continents",
+  "exploreWith": "Explore the world with RouteFlow",
+  "daysLabel": "days",
+  "travelersLabel": "travelers",
+  "totalSpent": "total spent",
+  "placesVisited": "places visited",
+  "shareYourTrip": "Share your trip",
+  "planYourOwn": "Plan your own trip →",
+  "mapPercentOfWorld": "of the world",
+  "mapFooter": "routeflow.app",
+  "wordmark": "ROUTEFLOW",
+  "siteDomain": "routeflow.app"
 }

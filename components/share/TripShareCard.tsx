@@ -4,6 +4,16 @@ import ViewShot from 'react-native-view-shot';
 
 export type TripShareCardHandle = { capture: () => Promise<string | undefined> };
 
+export type TripShareCardLabels = {
+  wordmark: string;
+  days: string;
+  travelers: string;
+  totalSpent: string;
+  placesVisited: string;
+  planYourOwn: string;
+  siteDomain: string;
+};
+
 type TripShareCardProps = {
   destination: string;
   countryFlag?: string;
@@ -14,12 +24,28 @@ type TripShareCardProps = {
   placesVisited: number;
   mood: string;
   moodEmoji: string;
+  labels: TripShareCardLabels;
   /** 'story' = 9:16 (360x640 → 1080x1920), 'square' = 1:1 (360x360 → 1080x1080) */
   format?: 'story' | 'square';
 };
 
 export const TripShareCard = forwardRef<TripShareCardHandle, TripShareCardProps>(
-  ({ destination, countryFlag, countryName, days, travelers, spentLabel, placesVisited, mood, moodEmoji, format = 'story' }, ref) => {
+  (
+    {
+      destination,
+      countryFlag,
+      countryName,
+      days,
+      travelers,
+      spentLabel,
+      placesVisited,
+      mood,
+      moodEmoji,
+      labels,
+      format = 'story',
+    },
+    ref,
+  ) => {
     const shotRef = useRef<ViewShot>(null);
     useImperativeHandle(ref, () => ({
       capture: () => shotRef.current?.capture?.() ?? Promise.resolve(undefined),
@@ -41,7 +67,7 @@ export const TripShareCard = forwardRef<TripShareCardHandle, TripShareCardProps>
           }}
         >
           <Text style={{ color: '#EA580C', fontSize: 14, fontWeight: '800', textAlign: 'center', letterSpacing: 2 }}>
-            ROUTEFLOW
+            {labels.wordmark}
           </Text>
 
           <View style={{ alignItems: 'center' }}>
@@ -70,22 +96,34 @@ export const TripShareCard = forwardRef<TripShareCardHandle, TripShareCardProps>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24 }}>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '900' }}>{days}</Text>
-                <Text style={{ color: '#64748B', fontSize: 11, fontWeight: '600' }}>DAYS</Text>
+                <Text
+                  style={{ color: '#64748B', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' }}
+                >
+                  {labels.days}
+                </Text>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '900' }}>{travelers}</Text>
-                <Text style={{ color: '#64748B', fontSize: 11, fontWeight: '600' }}>TRAVELERS</Text>
+                <Text
+                  style={{ color: '#64748B', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' }}
+                >
+                  {labels.travelers}
+                </Text>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '900' }}>{spentLabel}</Text>
-                <Text style={{ color: '#64748B', fontSize: 11, fontWeight: '600' }}>TOTAL</Text>
+                <Text
+                  style={{ color: '#64748B', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' }}
+                >
+                  {labels.totalSpent}
+                </Text>
               </View>
             </View>
 
             {isStory ? (
               <View style={{ marginTop: 24, alignItems: 'center' }}>
                 <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
-                  {placesVisited} places visited
+                  {placesVisited} {labels.placesVisited}
                 </Text>
                 <View
                   style={{
@@ -105,7 +143,7 @@ export const TripShareCard = forwardRef<TripShareCardHandle, TripShareCardProps>
           </View>
 
           <Text style={{ color: '#475569', fontSize: 12, textAlign: 'center' }}>
-            Plan your own trip → routeflow.app
+            {labels.planYourOwn} {labels.siteDomain}
           </Text>
         </View>
       </ViewShot>

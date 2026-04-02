@@ -30,6 +30,7 @@ import { continentStats, countryFlag, getCountry, TOTAL_COUNTRIES } from '../../
 
 export default function MapScreen() {
   const { t } = useTranslation('map');
+  const { t: ts } = useTranslation('share');
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { data: profile } = useProfile();
@@ -235,7 +236,21 @@ export default function MapScreen() {
       />
 
       <View style={{ position: 'absolute', left: -9999 }}>
-        <MapShareCard ref={shareRef} userName={userName} visitedCodes={visitedCodes} stats={stats} />
+        <MapShareCard
+          ref={shareRef}
+          userName={userName}
+          visitedCodes={visitedCodes}
+          visitedCount={stats.total}
+          continentCount={stats.continents}
+          percentage={stats.percentage}
+          labels={{
+            countries: ts('countriesVisited'),
+            continents: ts('continentsVisited'),
+            tagline: ts('exploreWith'),
+            ofTheWorld: ts('mapPercentOfWorld'),
+          }}
+          footerLine={ts('mapFooter')}
+        />
       </View>
     </View>
   );
