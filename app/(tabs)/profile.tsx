@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Pressable,
   ScrollView,
   Text,
@@ -16,6 +17,7 @@ import { Button } from '../../components/ui';
 import { LanguagePicker } from '../../components/LanguagePicker';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
+import { useSavedRoutes } from '../../lib/hooks/useCommunityRoutes';
 import {
   useCompletedTripsCount,
   useProfile,
@@ -23,12 +25,23 @@ import {
 } from '../../lib/hooks/useProfile';
 import { deleteOwnAccount, signOut } from '../../lib/supabase/auth';
 
+import type { CommunityRouteVm } from '../../lib/hooks/useCommunityRoutes';
+
+function savedRouteTipPreview(tip: string | null | undefined): string {
+  const s = (tip ?? '').trim();
+  if (s.length <= 60) {
+    return s;
+  }
+  return `${s.slice(0, 60)}…`;
+}
+
 export default function ProfileScreen() {
-  const { t } = useTranslation(['profile', 'common']);
+  const { t } = useTranslation(['profile', 'common', 'community']);
   const router = useRouter();
   const { data: profile, isLoading, isError, error, refetch } = useProfile();
   const { data: completedCount = 0, isLoading: isCountLoading } =
     useCompletedTripsCount();
+  const { data: savedRoutes = [], isLoading: savedRoutesLoading } = useSavedRoutes();
   const updateName = useUpdateProfileName();
 
   const planBadgeLabel = (plan: string | undefined): string => {
@@ -151,6 +164,7 @@ export default function ProfileScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+      nestedScrollEnabled
     >
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
         <Avatar name={displayName} imageUrl={profile.avatar_url} size={96} />
@@ -255,6 +269,82 @@ export default function ProfileScreen() {
           <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text }}>
             {completedCount}
           </Text>
+        )}
+      </View>
+
+      <View
+        style={{
+          marginTop: 24,
+          paddingTop: 20,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        }}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>
+          {t('profile:savedRoutes')}
+        </Text>
+        {savedRoutesLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginBottom: 8 }} />
+        ) : savedRoutes.length === 0 ? (
+          <View>
+            <Text style={{ fontSize: 14, color: colors.inactive, lineHeight: 20, marginBottom: 12 }}>
+              {t('profile:savedRoutesEmpty')}
+            </Text>
+            <Button
+              label={t('profile:savedRoutesBrowseCommunity')}
+              onPress={() => router.push('/(tabs)/community')}
+              variant="outline"
+              size="md"
+              accessibilityLabel={t('profile:savedRoutesBrowseCommunity')}
+            />
+          </View>
+        ) : (
+          <FlatList
+            horizontal
+            data={savedRoutes}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
+            contentContainerStyle={{ gap: 12, paddingRight: 4 }}
+            renderItem={({ item: r }: { item: CommunityRouteVm }) => {
+              const dest = r.destination?.trim() || r.title;
+              const durationLabel =
+                r.duration_days != null
+                  ? t('community:durationDays', { count: r.duration_days })
+                  : t('community:durationUnknown');
+              const preview = savedRouteTipPreview(r.tip);
+              return (
+                <Pressable
+                  onPress={() => router.push(`/(stack)/community/${r.id}`)}
+                  style={{
+                    width: 228,
+                    padding: 14,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: '#fff',
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={dest}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }} numberOfLines={2}>
+                    {dest}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 6 }} numberOfLines={1}>
+                    {r.creatorName}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 4 }} numberOfLines={1}>
+                    {durationLabel}
+                  </Text>
+                  {preview ? (
+                    <Text style={{ fontSize: 12, color: colors.text, marginTop: 8, lineHeight: 16 }} numberOfLines={2}>
+                      {preview}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              );
+            }}
+          />
         )}
       </View>
 
