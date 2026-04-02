@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import type ViewShot from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { RouteShareCard, type RouteShareCardHandle } from '../../../components/share';
 import { colors } from '../../../constants/colors';
 import { formatErrorMessage } from '../../../lib/formatError';
 import { useCommunityRoute, useToggleRouteLike } from '../../../lib/hooks/useCommunityRoutes';
+import { captureAndShare } from '../../../lib/utils/shareCard';
 import { parseRoutePlaceNames } from '../../../lib/utils/routeGeoJson';
 
 export default function CommunityRouteDetailScreen() {
@@ -14,9 +18,11 @@ export default function CommunityRouteDetailScreen() {
   const routeId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation('community');
+  const { t } = useTranslation(['community', 'share']);
   const { data: route, isPending, isError } = useCommunityRoute(routeId);
   const toggleLike = useToggleRouteLike();
+  const routeCardRef = useRef<RouteShareCardHandle>(null);
+  const [sharing, setSharing] = useState(false);
 
   if (isPending) {
     return (
@@ -38,7 +44,19 @@ export default function CommunityRouteDetailScreen() {
   }
 
   const names = parseRoutePlaceNames(route.route_geojson);
-  const styleLabel = route.travel_style ? (t as (k: string) => string)(`style_${route.travel_style}`) : '';
+  const styleLabel = route.travel_style ? (t as (k: string) => string)(`community:style_${route.travel_style}`) : '';
+
+  const handleShareRoute = async () => {
+    setSharing(true);
+    try {
+      await new Promise((r) => setTimeout(r, 100));
+      await captureAndShare(routeCardRef as React.RefObject<ViewShot | null>, { saveToLibrary: true });
+    } catch {
+      Alert.alert(t('community:errorTitle'), t('share:errorCapture'));
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
@@ -86,6 +104,32 @@ export default function CommunityRouteDetailScreen() {
             </Text>
           ))
         )}
+        {route.likes_count >= 10 ? (
+          <Pressable
+            onPress={() => void handleShareRoute()}
+            disabled={sharing}
+            style={({ pressed }) => ({
+              marginTop: 20,
+              paddingVertical: 14,
+              borderRadius: 14,
+              backgroundColor: 'rgba(234,88,12,0.1)',
+              borderWidth: 1,
+              borderColor: colors.primarySolid,
+              alignItems: 'center',
+              opacity: sharing ? 0.5 : pressed ? 0.85 : 1,
+            })}
+            accessibilityRole="button"
+            accessibilityLabel={t('share:shareRouteBtn')}
+          >
+            {sharing ? (
+              <ActivityIndicator color={colors.primarySolid} size="small" />
+            ) : (
+              <Text style={{ color: colors.primarySolid, fontSize: 15, fontWeight: '700' }}>
+                {t('share:shareRouteBtn')}
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       <View
@@ -106,8 +150,18 @@ export default function CommunityRouteDetailScreen() {
           }}
           accessibilityRole="button"
         >
-          <Text style={{ color: colors.onPrimary, fontSize: 17, fontWeight: '700' }}>{t('planTripCta')}</Text>
+          <Text style={{ color: colors.onPrimary, fontSize: 17, fontWeight: '700' }}>{t('community:planTripCta')}</Text>
         </Pressable>
+      </View>
+
+      <View style={{ position: 'absolute', left: -9999 }}>
+        <RouteShareCard
+          ref={routeCardRef}
+          destination={route.destination ?? route.title}
+          likesCount={route.likes_count}
+          topPlaces={names.slice(0, 3)}
+          travelStyle={styleLabel}
+        />
       </View>
     </View>
   );

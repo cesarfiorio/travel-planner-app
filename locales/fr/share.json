@@ -1,0 +1,18 @@
+{
+  "title": "Share your trip",
+  "storyLabel": "Instagram Story",
+  "storySub": "9:16 vertical — perfect for Stories",
+  "squareLabel": "Square Post",
+  "squareSub": "1:1 — for feed posts and tweets",
+  "linkLabel": "Share Link",
+  "linkSub": "Copy your trip's public URL",
+  "cancel": "Cancel",
+  "shareTitle": "Share",
+  "sharePickFormat": "Choose a format",
+  "shareStory": "Instagram Story (9:16)",
+  "shareSquare": "Square Post (1:1)",
+  "shareLink": "Share Link",
+  "errorTitle": "Error",
+  "errorCapture": "Could not generate the image.",
+  "shareRouteBtn": "Share route"
+}

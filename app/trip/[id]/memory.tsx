@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LockedBanner } from '../../../components/LockedBanner';
 import { PlanGate } from '../../../components/PlanGate';
+import { TripShareCard, type TripShareCardHandle, ShareFormatSheet } from '../../../components/share';
 import { colors } from '../../../constants/colors';
 import { getPlacePhotoSource } from '../../../lib/api/placePhoto';
 import { formatErrorMessage } from '../../../lib/formatError';
@@ -38,6 +39,7 @@ import { useTripExpenses } from '../../../lib/hooks/useExpenses';
 import { useTrip } from '../../../lib/hooks/useTrips';
 import { firstPhotoReference } from '../../../lib/places/firstPhotoRef';
 import { formatCurrency } from '../../../lib/utils/formatCurrency';
+import { captureAndShare, type ShareFormat } from '../../../lib/utils/shareCard';
 
 import * as Localization from 'expo-localization';
 
@@ -78,7 +80,10 @@ export default function TripMemoryScreen() {
   const delJ = useDeleteJournalEntry();
 
   const shotRef = useRef<ViewShot | null>(null);
+  const tripCardRef = useRef<TripShareCardHandle>(null);
   const [shareBusy, setShareBusy] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -123,6 +128,27 @@ export default function TripMemoryScreen() {
           onError: (e) => Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('errorSave'))),
         },
       );
+    }
+  };
+
+  const handleShareFormat = async (fmt: ShareFormat) => {
+    if (fmt === 'link') {
+      await Clipboard.setStringAsync(publicUrl);
+      Alert.alert(tm('linkCopiedTitle'), tm('linkCopiedBody'));
+      return;
+    }
+    setShareFormat(fmt === 'story' ? 'story' : 'square');
+    setShareBusy(true);
+    try {
+      await new Promise((r) => setTimeout(r, 100));
+      await captureAndShare(tripCardRef as React.RefObject<ViewShot | null>, {
+        saveToLibrary: true,
+        instagramStory: fmt === 'story',
+      });
+    } catch (e) {
+      Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('errorShare')));
+    } finally {
+      setShareBusy(false);
     }
   };
 
@@ -243,7 +269,7 @@ export default function TripMemoryScreen() {
               </ViewShot>
             </View>
             <Pressable
-              onPress={() => void captureShare()}
+              onPress={() => setShareSheetOpen(true)}
               disabled={shareBusy}
               style={{
                 paddingVertical: 14,
@@ -348,6 +374,36 @@ export default function TripMemoryScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <ShareFormatSheet
+        visible={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        onPick={(fmt) => void handleShareFormat(fmt)}
+      />
+
+      <View style={{ position: 'absolute', left: -9999 }}>
+        <TripShareCard
+          ref={tripCardRef}
+          destination={memory?.destination_label ?? trip?.name ?? ''}
+          days={
+            trip?.start_date && trip?.end_date
+              ? Math.max(
+                  1,
+                  Math.ceil(
+                    (new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) /
+                      (24 * 60 * 60 * 1000),
+                  ),
+                )
+              : 0
+          }
+          travelers={memory?.travelers_count ?? 1}
+          spentLabel={spentLabel}
+          placesVisited={memory?.places_visited ?? 0}
+          mood={memoryMoodText(memory?.mood ?? 'good', tm)}
+          moodEmoji={memory?.mood === 'amazing' ? '😍' : memory?.mood === 'great' ? '🤩' : memory?.mood === 'good' ? '😊' : '🤔'}
+          format={shareFormat}
+        />
+      </View>
     </View>
   );
 }

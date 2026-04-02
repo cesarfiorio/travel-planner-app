@@ -14,6 +14,7 @@ import dePaywall from '../../locales/de/paywall.json';
 import deProfile from '../../locales/de/profile.json';
 import deTrips from '../../locales/de/trips.json';
 import deMap from '../../locales/de/map.json';
+import deShare from '../../locales/de/share.json';
 import enAuth from '../../locales/en/auth.json';
 import enCommon from '../../locales/en/common.json';
 import enCommunity from '../../locales/en/community.json';
@@ -25,6 +26,7 @@ import enPaywall from '../../locales/en/paywall.json';
 import enProfile from '../../locales/en/profile.json';
 import enTrips from '../../locales/en/trips.json';
 import enMap from '../../locales/en/map.json';
+import enShare from '../../locales/en/share.json';
 import esAuth from '../../locales/es/auth.json';
 import esCommon from '../../locales/es/common.json';
 import esCommunity from '../../locales/es/community.json';
@@ -36,6 +38,7 @@ import esPaywall from '../../locales/es/paywall.json';
 import esProfile from '../../locales/es/profile.json';
 import esTrips from '../../locales/es/trips.json';
 import esMap from '../../locales/es/map.json';
+import esShare from '../../locales/es/share.json';
 import frAuth from '../../locales/fr/auth.json';
 import frCommon from '../../locales/fr/common.json';
 import frCommunity from '../../locales/fr/community.json';
@@ -47,6 +50,7 @@ import frPaywall from '../../locales/fr/paywall.json';
 import frProfile from '../../locales/fr/profile.json';
 import frTrips from '../../locales/fr/trips.json';
 import frMap from '../../locales/fr/map.json';
+import frShare from '../../locales/fr/share.json';
 import itAuth from '../../locales/it/auth.json';
 import itCommon from '../../locales/it/common.json';
 import itCommunity from '../../locales/it/community.json';
@@ -58,6 +62,7 @@ import itPaywall from '../../locales/it/paywall.json';
 import itProfile from '../../locales/it/profile.json';
 import itTrips from '../../locales/it/trips.json';
 import itMap from '../../locales/it/map.json';
+import itShare from '../../locales/it/share.json';
 import ptAuth from '../../locales/pt/auth.json';
 import ptCommon from '../../locales/pt/common.json';
 import ptCommunity from '../../locales/pt/community.json';
@@ -69,6 +74,7 @@ import ptPaywall from '../../locales/pt/paywall.json';
 import ptProfile from '../../locales/pt/profile.json';
 import ptTrips from '../../locales/pt/trips.json';
 import ptMap from '../../locales/pt/map.json';
+import ptShare from '../../locales/pt/share.json';
 
 import './types';
 
@@ -89,6 +95,7 @@ const namespaces = [
   'memory',
   'members',
   'map',
+  'share',
 ] as const;
 
 function bundle(
@@ -103,6 +110,7 @@ function bundle(
   memory: typeof enMemory,
   members: typeof enMembers,
   map: typeof enMap,
+  share: typeof enShare,
 ) {
   return {
     common,
@@ -116,16 +124,17 @@ function bundle(
     memory,
     members,
     map,
+    share,
   };
 }
 
 const resources = {
-  en: bundle(enCommon, enAuth, enTrips, enExplore, enExpenses, enCommunity, enProfile, enPaywall, enMemory, enMembers, enMap),
-  pt: bundle(ptCommon, ptAuth, ptTrips, ptExplore, ptExpenses, ptCommunity, ptProfile, ptPaywall, ptMemory, ptMembers, ptMap),
-  es: bundle(esCommon, esAuth, esTrips, esExplore, esExpenses, esCommunity, esProfile, esPaywall, esMemory, esMembers, esMap),
-  it: bundle(itCommon, itAuth, itTrips, itExplore, itExpenses, itCommunity, itProfile, itPaywall, itMemory, itMembers, itMap),
-  de: bundle(deCommon, deAuth, deTrips, deExplore, deExpenses, deCommunity, deProfile, dePaywall, deMemory, deMembers, deMap),
-  fr: bundle(frCommon, frAuth, frTrips, frExplore, frExpenses, frCommunity, frProfile, frPaywall, frMemory, frMembers, frMap),
+  en: bundle(enCommon, enAuth, enTrips, enExplore, enExpenses, enCommunity, enProfile, enPaywall, enMemory, enMembers, enMap, enShare),
+  pt: bundle(ptCommon, ptAuth, ptTrips, ptExplore, ptExpenses, ptCommunity, ptProfile, ptPaywall, ptMemory, ptMembers, ptMap, ptShare),
+  es: bundle(esCommon, esAuth, esTrips, esExplore, esExpenses, esCommunity, esProfile, esPaywall, esMemory, esMembers, esMap, esShare),
+  it: bundle(itCommon, itAuth, itTrips, itExplore, itExpenses, itCommunity, itProfile, itPaywall, itMemory, itMembers, itMap, itShare),
+  de: bundle(deCommon, deAuth, deTrips, deExplore, deExpenses, deCommunity, deProfile, dePaywall, deMemory, deMembers, deMap, deShare),
+  fr: bundle(frCommon, frAuth, frTrips, frExplore, frExpenses, frCommunity, frProfile, frPaywall, frMemory, frMembers, frMap, frShare),
 } as const;
 
 export function isAppLanguageCode(value: string): value is AppLanguageCode {

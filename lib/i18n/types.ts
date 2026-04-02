@@ -9,6 +9,7 @@ import type paywall from '../../locales/en/paywall.json';
 import type profile from '../../locales/en/profile.json';
 import type trips from '../../locales/en/trips.json';
 import type map from '../../locales/en/map.json';
+import type share from '../../locales/en/share.json';
 
 export type TranslationNamespaces = {
   common: typeof common;
@@ -22,6 +23,7 @@ export type TranslationNamespaces = {
   paywall: typeof paywall;
   memory: typeof memory;
   map: typeof map;
+  share: typeof share;
 };
 
 declare module 'i18next' {
