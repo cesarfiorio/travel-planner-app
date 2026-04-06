@@ -16,14 +16,12 @@ export function WorldMap({
   width,
   height,
 }: WorldMapProps) {
-  const visitedEntries = useMemo(() => {
-    const entries: { code: string; x: number; y: number }[] = [];
-    for (const [code, pos] of Object.entries(COUNTRY_CENTERS)) {
-      if (visitedCodes.has(code)) {
-        entries.push({ code, ...pos });
-      }
-    }
-    return entries;
+  const countryMarkers = useMemo(() => {
+    return Object.entries(COUNTRY_CENTERS).map(([code, pos]) => ({
+      code,
+      ...pos,
+      visited: visitedCodes.has(code),
+    }));
   }, [visitedCodes]);
 
   return (
@@ -35,10 +33,16 @@ export function WorldMap({
         stroke="#3A3A3A"
         strokeWidth={0.5}
       />
-      {visitedEntries.map(({ code, x, y }) => (
+      {countryMarkers.map(({ code, x, y, visited }) => (
         <G key={code} onPress={onCountryPress ? () => onCountryPress(code) : undefined}>
-          <Circle cx={x} cy={y} r={6} fill="#EA580C" stroke="#F97316" strokeWidth={1.5} />
-          <Circle cx={x} cy={y} r={2.5} fill="#FFFFFF" />
+          {visited ? (
+            <>
+              <Circle cx={x} cy={y} r={6} fill="#EA580C" stroke="#F97316" strokeWidth={1.5} />
+              <Circle cx={x} cy={y} r={2.5} fill="#FFFFFF" />
+            </>
+          ) : (
+            <Circle cx={x} cy={y} r={5} fill="#3F3F46" stroke="#52525B" strokeWidth={0.8} />
+          )}
         </G>
       ))}
     </Svg>

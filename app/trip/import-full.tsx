@@ -20,6 +20,7 @@ import { CurrencyPicker } from '../../components/CurrencyPicker';
 import { colors } from '../../constants/colors';
 import { defaultCurrencyForLocale } from '../../constants/currencies';
 import { formatErrorMessage } from '../../lib/formatError';
+import { toCents } from '../../lib/utils/splitCalculator';
 import { useCanImport, useFullImportTrip } from '../../lib/hooks/useImportTrip';
 import type { MemoryMood } from '../../lib/hooks/useFinishTrip';
 
@@ -73,7 +74,8 @@ export default function ImportFullScreen() {
       return;
     }
     const spent = parseFloat(spentText.replace(',', '.'));
-    const totalCents = Number.isFinite(spent) && spent > 0 ? Math.round(spent * 100) : 0;
+    const totalCents =
+      Number.isFinite(spent) && spent > 0 ? toCents(spent, currency) : 0;
 
     fullImport.mutate(
       {

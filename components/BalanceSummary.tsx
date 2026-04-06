@@ -6,7 +6,8 @@ import { colors } from '../constants/colors';
 import type { ExpenseWithSplits } from '../lib/hooks/useExpenses';
 import type { MemberProfileBrief } from '../lib/hooks/useTrips';
 import { formatCurrency } from '../lib/utils/formatCurrency';
-import { calculateBalances, simplifyDebts, type SimplifiedDebt } from '../lib/utils/splitCalculator';
+import { groupExpensesByCurrency } from '../lib/utils/expenseBalanceGroups';
+import type { SimplifiedDebt } from '../lib/utils/splitCalculator';
 
 import * as Localization from 'expo-localization';
 
@@ -14,39 +15,6 @@ import { DebtRow } from './DebtRow';
 
 function displayName(p: MemberProfileBrief | undefined, fallback: string): string {
   return p?.display_name?.trim() || p?.full_name?.trim() || fallback;
-}
-
-type CurrencyGroup = {
-  currency: string;
-  balances: Record<string, number>;
-  simplified: SimplifiedDebt[];
-};
-
-function groupByCurrency(expenses: ExpenseWithSplits[]): CurrencyGroup[] {
-  const byCur = new Map<string, { exps: typeof expenses }>();
-  for (const e of expenses) {
-    const c = e.currency || 'USD';
-    const g = byCur.get(c) ?? { exps: [] };
-    g.exps.push(e);
-    byCur.set(c, g);
-  }
-
-  const groups: CurrencyGroup[] = [];
-  for (const [currency, { exps }] of byCur) {
-    const expPart = exps.map((e) => ({ id: e.id, paid_by_user_id: e.paid_by_user_id, amount_cents: e.amount_cents }));
-    const splitPart = exps.flatMap((e) =>
-      (e.expense_splits ?? []).map((s) => ({
-        expense_id: e.id,
-        user_id: s.user_id,
-        amount_owed_cents: s.amount_owed_cents,
-        is_settled: s.is_settled ?? false,
-      })),
-    );
-    const balances = calculateBalances(expPart, splitPart);
-    const simplified = simplifyDebts(balances).map((d) => ({ ...d, currency }));
-    groups.push({ currency, balances, simplified });
-  }
-  return groups;
 }
 
 type BalanceSummaryProps = {
@@ -73,7 +41,7 @@ export function BalanceSummary({
   const positive = '#059669';
   const negative = '#DC2626';
 
-  const groups = useMemo(() => groupByCurrency(expenses), [expenses]);
+  const groups = useMemo(() => groupExpensesByCurrency(expenses), [expenses]);
   const isMixed = groups.length > 1;
 
   if (!hasExpenses) {

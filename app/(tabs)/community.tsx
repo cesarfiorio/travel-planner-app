@@ -1,27 +1,39 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
-  Text,
-  TextInput,
-  View,
   Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CommunityRouteCard } from '../../components/CommunityRouteCard';
-import { colors } from '../../constants/colors';
-import { TRAVEL_STYLE_IDS } from '../../lib/community/constants';
+import { CommunityMvpCard } from '../../components/CommunityMvpCard';
 import {
   useCommunityFeed,
   useToggleRouteLike,
   useToggleRouteSave,
-  useMarkRouteUsed,
 } from '../../lib/hooks/useCommunityRoutes';
 
-/** Per-route in-flight counts so concurrent actions on different cards (or stacked on one) stay correct. */
+const SCREEN_BG = '#F3F4F6';
+const ORANGE = '#F05A1A';
+
+type PillId = 'all' | 'solo' | 'couple' | 'family' | 'friends' | 'adventure';
+
+const PILLS: { id: PillId; labelKey: string }[] = [
+  { id: 'all', labelKey: 'filterPillAll' },
+  { id: 'solo', labelKey: 'style_solo' },
+  { id: 'couple', labelKey: 'style_couple' },
+  { id: 'family', labelKey: 'style_family' },
+  { id: 'friends', labelKey: 'styleFriends' },
+  { id: 'adventure', labelKey: 'filterPillAdventure' },
+];
+
 function usePerRoutePending() {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
@@ -48,21 +60,35 @@ function usePerRoutePending() {
 
 export default function CommunityScreen() {
   const { t } = useTranslation('community');
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [search, setSearch] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [styleFilter, setStyleFilter] = useState<string | null>(null);
+  const [pill, setPill] = useState<PillId>('all');
+
+  const { travelStyle, tagContains } = useMemo(() => {
+    switch (pill) {
+      case 'solo':
+        return { travelStyle: 'solo' as const, tagContains: null };
+      case 'couple':
+        return { travelStyle: 'couple' as const, tagContains: null };
+      case 'family':
+        return { travelStyle: 'family' as const, tagContains: null };
+      case 'friends':
+        return { travelStyle: 'group' as const, tagContains: null };
+      case 'adventure':
+        return { travelStyle: null, tagContains: 'adventure' as const };
+      default:
+        return { travelStyle: null, tagContains: null };
+    }
+  }, [pill]);
 
   const { data, isPending, isError, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCommunityFeed(debounced, styleFilter);
+    useCommunityFeed('', travelStyle, tagContains);
 
   const toggleLike = useToggleRouteLike();
   const toggleSave = useToggleRouteSave();
-  const markUsed = useMarkRouteUsed();
 
   const likePending = usePerRoutePending();
   const savePending = usePerRoutePending();
-  const usedPending = usePerRoutePending();
 
   const routes = useMemo(() => data?.pages.flat() ?? [], [data]);
 
@@ -72,91 +98,74 @@ export default function CommunityScreen() {
     }
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
-      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, paddingHorizontal: 16, marginBottom: 12 }}>
-        {t('screenTitle')}
-      </Text>
-
-      <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          onSubmitEditing={() => setDebounced(search)}
-          placeholder={t('searchPlaceholder')}
-          placeholderTextColor={colors.inactive}
-          style={{
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: 12,
-            paddingHorizontal: 14,
-            paddingVertical: 12,
-            fontSize: 16,
-            color: colors.text,
-            backgroundColor: '#fff',
-          }}
-          returnKeyType="search"
-        />
-        <Pressable
-          onPress={() => setDebounced(search)}
-          style={{
-            marginTop: 8,
-            alignSelf: 'flex-start',
-            paddingVertical: 8,
-            paddingHorizontal: 14,
-            backgroundColor: colors.primarySolid,
-            borderRadius: 10,
-          }}
-        >
-          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{t('searchButton')}</Text>
-        </Pressable>
-      </View>
-
-      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.inactive, paddingHorizontal: 16, marginBottom: 8 }}>
-        {t('filterTravelStyle')}
-      </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, marginBottom: 12 }}>
-        <Pressable
-          onPress={() => setStyleFilter(null)}
-          style={{
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderRadius: 20,
-            backgroundColor: styleFilter === null ? colors.primarySolid : '#F3F4F6',
-          }}
-        >
-          <Text style={{ fontWeight: '700', color: styleFilter === null ? colors.onPrimary : colors.text }}>{t('filterAll')}</Text>
-        </Pressable>
-        {TRAVEL_STYLE_IDS.map((s) => (
+  const renderPills = () => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingLeft: 20,
+        paddingRight: 12,
+        gap: 8,
+        alignItems: 'center',
+        paddingVertical: 16,
+      }}
+    >
+      {PILLS.map((p) => {
+        const active = pill === p.id;
+        return (
           <Pressable
-            key={s}
-            onPress={() => setStyleFilter((cur) => (cur === s ? null : s))}
+            key={p.id}
+            onPress={() => setPill(p.id)}
             style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 20,
-              backgroundColor: styleFilter === s ? colors.primarySolid : '#F3F4F6',
+              height: 36,
+              paddingHorizontal: 16,
+              borderRadius: 100,
+              backgroundColor: active ? ORANGE : '#fff',
+              borderWidth: active ? 0 : 1,
+              borderColor: '#E5E7EB',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
           >
-            <Text style={{ fontWeight: '700', color: styleFilter === s ? colors.onPrimary : colors.text }}>
-              {(t as (k: string) => string)(`style_${s}`)}
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: active ? '#fff' : '#374151',
+              }}
+            >
+              {(t as (k: string) => string)(p.labelKey)}
             </Text>
           </Pressable>
-        ))}
+        );
+      })}
+    </ScrollView>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: SCREEN_BG }}>
+      <View style={{ paddingTop: insets.top + 20, paddingHorizontal: 20, paddingBottom: 0 }}>
+        <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827' }}>{t('screenTitle')}</Text>
+        <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>{t('screenSubtitle')}</Text>
       </View>
+
+      {renderPills()}
 
       {isPending && routes.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={colors.primarySolid} size="large" />
+          <ActivityIndicator color={ORANGE} size="large" />
         </View>
       ) : isError ? (
-        <Text style={{ textAlign: 'center', color: colors.inactive, padding: 24 }}>{t('errorLoad')}</Text>
+        <Text style={{ textAlign: 'center', color: '#6B7280', padding: 24 }}>{t('errorLoad')}</Text>
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={routes}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <CommunityRouteCard
+            <CommunityMvpCard
               route={item}
               onToggleHeart={() => {
                 const routeId = item.id;
@@ -174,32 +183,53 @@ export default function CommunityScreen() {
                   { onSettled: () => savePending.end(routeId) },
                 );
               }}
-              onMarkUsed={() => {
-                const routeId = item.id;
-                usedPending.begin(routeId);
-                markUsed.mutate({ routeId }, { onSettled: () => usedPending.end(routeId) });
-              }}
               heartBusy={likePending.isBusy(item.id)}
               saveBusy={savePending.isBusy(item.id)}
-              usedBusy={usedPending.isBusy(item.id)}
             />
           )}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.35}
           ListFooterComponent={
             isFetchingNextPage ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primarySolid} />
+              <ActivityIndicator style={{ marginVertical: 16 }} color={ORANGE} />
             ) : null
           }
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', color: colors.inactive, paddingVertical: 40, paddingHorizontal: 24 }}>
+            <Text style={{ textAlign: 'center', color: '#6B7280', paddingVertical: 40, paddingHorizontal: 24 }}>
               {t('emptyFeed')}
             </Text>
           }
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ paddingBottom: 12 }}
         />
       )}
+
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 8,
+          paddingBottom: insets.bottom + 16,
+          backgroundColor: SCREEN_BG,
+        }}
+      >
+        <Pressable
+          onPress={() => router.push('/trip/import')}
+          style={{
+            height: 52,
+            borderRadius: 100,
+            backgroundColor: ORANGE,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('sharePastTrip')}
+        >
+          <Ionicons name="add" size={22} color="#fff" />
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>{t('sharePastTrip')}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

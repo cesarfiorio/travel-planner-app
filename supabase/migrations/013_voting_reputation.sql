@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS public.route_saves (
   PRIMARY KEY (user_id, route_id)
 );
 ALTER TABLE public.route_saves ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "route_saves_select" ON public.route_saves;
+DROP POLICY IF EXISTS "route_saves_insert" ON public.route_saves;
+DROP POLICY IF EXISTS "route_saves_delete" ON public.route_saves;
 CREATE POLICY "route_saves_select" ON public.route_saves FOR SELECT TO authenticated USING (true);
 CREATE POLICY "route_saves_insert" ON public.route_saves FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
 CREATE POLICY "route_saves_delete" ON public.route_saves FOR DELETE TO authenticated USING (user_id = auth.uid());
@@ -21,6 +24,8 @@ CREATE TABLE IF NOT EXISTS public.route_used (
   PRIMARY KEY (user_id, route_id)
 );
 ALTER TABLE public.route_used ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "route_used_select" ON public.route_used;
+DROP POLICY IF EXISTS "route_used_insert" ON public.route_used;
 CREATE POLICY "route_used_select" ON public.route_used FOR SELECT TO authenticated USING (true);
 CREATE POLICY "route_used_insert" ON public.route_used FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
 

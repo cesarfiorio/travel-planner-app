@@ -1,6 +1,12 @@
 {
   "tabTitle": "Community",
   "screenTitle": "Community",
+  "screenSubtitle": "Scopri viaggi condivisi da altri viaggiatori",
+  "filterPillAll": "Tutti i viaggi",
+  "styleFriends": "Amici",
+  "filterPillAdventure": "Avventura",
+  "viewRoute": "Vedi percorso",
+  "sharePastTrip": "+ Condividi un viaggio passato",
   "searchPlaceholder": "Search destinations",
   "searchButton": "Search",
   "filterTravelStyle": "Travel style",

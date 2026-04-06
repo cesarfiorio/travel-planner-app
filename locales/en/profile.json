@@ -1,5 +1,8 @@
 {
   "tabTitle": "Profile",
+  "accountTitle": "Account",
+  "accountSettings": "Account & settings",
+  "accountBackA11y": "Go back",
   "planFree": "Free plan",
   "planPlus": "Plus plan",
   "planPro": "Pro plan",

@@ -1,5 +1,8 @@
 {
   "tabTitle": "[IT] Profile",
+  "accountTitle": "Account",
+  "accountSettings": "Account e impostazioni",
+  "accountBackA11y": "Indietro",
   "planFree": "[IT] Free plan",
   "planPlus": "[IT] Plus plan",
   "planPro": "[IT] Pro plan",

@@ -47,12 +47,17 @@ async function fetchProfilesMap(ids: string[]): Promise<Map<string, { display_na
   return map;
 }
 
-export function useCommunityFeed(search: string, travelStyle: string | null) {
+export function useCommunityFeed(
+  search: string,
+  travelStyle: string | null,
+  /** When set, filter rows whose `tags` array contains this value (e.g. `adventure`). */
+  tagContains: string | null = null,
+) {
   const { user } = useAuth();
   const uid = user?.id ?? '';
 
   return useInfiniteQuery({
-    queryKey: [...communityFeedQueryKey, search.trim(), travelStyle ?? '', uid] as const,
+    queryKey: [...communityFeedQueryKey, search.trim(), travelStyle ?? '', tagContains ?? '', uid] as const,
     enabled: Boolean(uid && hasSupabaseEnv && supabase),
     initialPageParam: 0,
     queryFn: async ({ pageParam }: { pageParam: number }): Promise<CommunityRouteVm[]> => {
@@ -61,12 +66,14 @@ export function useCommunityFeed(search: string, travelStyle: string | null) {
       }
       const from = pageParam * PAGE;
       const to = from + PAGE - 1;
-      let q = supabase.from('ranked_routes').select('*').order('score', { ascending: false });
+      let q = supabase.from('ranked_routes').select('*').order('published_at', { ascending: false });
       const s = search.trim();
       if (s) {
         q = q.ilike('destination', `%${s}%`);
       }
-      if (travelStyle) {
+      if (tagContains) {
+        q = q.contains('tags', [tagContains]);
+      } else if (travelStyle) {
         q = q.eq('travel_style', travelStyle);
       }
       const { data: rows, error } = await q.range(from, to);

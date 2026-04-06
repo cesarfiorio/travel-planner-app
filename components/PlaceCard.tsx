@@ -2,15 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
-import { colors } from '../constants/colors';
+import { placeCategoryBadgeKey } from '../lib/exploreCategory';
 import { getPlacePhotoSource } from '../lib/api/placePhoto';
 import { useAddTripPlace } from '../lib/hooks/useItinerary';
 import { firstPhotoReference } from '../lib/places/firstPhotoRef';
-import { formatPriceLevel } from '../lib/places/priceLevel';
-import { placeCategoryExploreKey } from '../lib/exploreCategory';
 import type { Place } from '../types/places';
+
+const ORANGE = '#F05A1A';
+const CARD_RADIUS = 16;
+const IMAGE_H = 200;
 
 type Props = {
   place: Place;
@@ -34,79 +36,145 @@ export function PlaceCard({ place, tripId, accessToken, isInItinerary }: Props) 
     void addMut.mutateAsync({ tripId, placeId: place.id });
   };
 
-  const price = formatPriceLevel(place.price_level);
+  const openDetail = () => {
+    router.push(`/(stack)/place/${place.id}`);
+  };
+
   const rating =
     place.rating != null && !Number.isNaN(Number(place.rating)) ? Number(place.rating).toFixed(1) : null;
-
-  const categoryExploreKey = placeCategoryExploreKey(place.category);
+  const reviewsCount = place.user_ratings_total;
+  const badgeKey = placeCategoryBadgeKey(place.category);
+  const description = place.address?.trim() || '';
 
   return (
     <View
       style={{
         marginHorizontal: 16,
-        marginBottom: 14,
-        flexDirection: 'row',
-        padding: 12,
-        borderRadius: 14,
+        marginBottom: 20,
+        borderRadius: CARD_RADIUS,
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.background,
+        borderColor: '#E5E7EB',
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
       }}
     >
-      <Pressable
-        onPress={() => router.push(`/(stack)/place/${place.id}`)}
-        style={({ pressed }) => ({ flexDirection: 'row', flex: 1, opacity: pressed ? 0.92 : 1 })}
-        accessibilityRole="button"
-        accessibilityLabel={place.name}
-      >
-        <View style={{ width: 88, height: 88, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border }}>
+      <View style={{ height: IMAGE_H, width: '100%', backgroundColor: '#E5E7EB' }}>
+        <Pressable onPress={openDetail} accessibilityRole="button" accessibilityLabel={place.name} style={{ flex: 1 }}>
           {photoSource ? (
-            <Image source={photoSource} style={{ width: 88, height: 88 }} contentFit="cover" transition={200} />
+            <Image source={photoSource} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="image-outline" size={28} color={colors.inactive} />
+              <Ionicons name="image-outline" size={48} color="#9CA3AF" />
             </View>
           )}
-        </View>
-        <View style={{ flex: 1, marginLeft: 12, minWidth: 0, paddingRight: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={2}>
+        </Pressable>
+        {badgeKey ? (
+          <View
+            style={{
+              position: 'absolute',
+              left: 12,
+              bottom: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              backgroundColor: 'rgba(255,255,255,0.95)',
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827' }}>{t(badgeKey)}</Text>
+          </View>
+        ) : null}
+        <Pressable
+          onPress={onToggleItinerary}
+          disabled={isInItinerary || addMut.isPending}
+          hitSlop={8}
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255,255,255,0.95)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.12,
+            shadowRadius: 3,
+            elevation: 2,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isInItinerary ? t('addedToItineraryA11y') : t('addToItineraryA11y')}
+        >
+          {addMut.isPending ? (
+            <ActivityIndicator size="small" color="#6B7280" />
+          ) : (
+            <Ionicons
+              name={isInItinerary ? 'heart' : 'heart-outline'}
+              size={22}
+              color={isInItinerary ? ORANGE : '#4B5563'}
+            />
+          )}
+        </Pressable>
+      </View>
+
+      <Pressable onPress={openDetail} accessibilityRole="button" accessibilityLabel={place.name}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }} numberOfLines={2}>
             {place.name}
           </Text>
-          <View style={{ alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: '#F3F4F6' }}>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: colors.inactive, textTransform: 'capitalize' }}>
-              {categoryExploreKey ? t(categoryExploreKey) : place.category}
-            </Text>
-          </View>
-          {place.address ? (
-            <Text style={{ fontSize: 13, color: colors.inactive, marginTop: 6 }} numberOfLines={2}>
-              {place.address}
+          {description ? (
+            <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 6, lineHeight: 20 }} numberOfLines={2}>
+              {description}
             </Text>
           ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 10 }}>
-            {rating != null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="star" size={14} color="#CA8A04" />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>{rating}</Text>
-              </View>
-            ) : null}
-            {price ? <Text style={{ fontSize: 13, color: colors.text }}>{price}</Text> : null}
-          </View>
+          {rating != null ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 6 }}>
+              <Ionicons name="star" size={18} color={ORANGE} />
+              <Text style={{ fontSize: 14, color: '#6B7280' }}>
+                {reviewsCount != null && reviewsCount > 0
+                  ? t('ratingReviewsLine', { rating, count: reviewsCount.toLocaleString() })
+                  : rating}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </Pressable>
-      <Pressable
-        onPress={onToggleItinerary}
-        hitSlop={10}
-        disabled={isInItinerary || addMut.isPending}
-        style={{ justifyContent: 'flex-start', paddingTop: 4 }}
-        accessibilityRole="button"
-        accessibilityLabel={isInItinerary ? t('addedToItineraryA11y') : t('addToItineraryA11y')}
-      >
-        <Ionicons
-          name={isInItinerary ? 'heart' : 'heart-outline'}
-          size={26}
-          color={isInItinerary ? colors.primarySolid : colors.inactive}
-        />
-      </Pressable>
+
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 }}>
+        <Pressable
+          onPress={onToggleItinerary}
+          disabled={isInItinerary || addMut.isPending}
+          style={({ pressed }) => ({
+            paddingVertical: 14,
+            borderRadius: 14,
+            backgroundColor: isInItinerary ? '#F3F4F6' : ORANGE,
+            alignItems: 'center',
+            opacity: pressed && !isInItinerary && !addMut.isPending ? 0.92 : 1,
+          })}
+          accessibilityRole="button"
+          accessibilityLabel={isInItinerary ? t('addedToItineraryA11y') : t('placeAddItinerary')}
+        >
+          {addMut.isPending ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '700',
+                color: isInItinerary ? '#9CA3AF' : '#FFFFFF',
+              }}
+            >
+              {isInItinerary ? t('placeAddedItinerary') : t('placeAddItinerary')}
+            </Text>
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 }

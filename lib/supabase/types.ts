@@ -75,6 +75,7 @@ export type Database = {
       }
       community_routes: {
         Row: {
+          cover_photo_url: string | null
           created_at: string
           creator_id: string
           description: string | null
@@ -96,6 +97,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cover_photo_url?: string | null
           created_at?: string
           creator_id: string
           description?: string | null
@@ -117,6 +119,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cover_photo_url?: string | null
           created_at?: string
           creator_id?: string
           description?: string | null
@@ -655,6 +658,7 @@ export type Database = {
     Views: {
       ranked_routes: {
         Row: {
+          cover_photo_url: string | null
           created_at: string
           creator_id: string
           description: string | null

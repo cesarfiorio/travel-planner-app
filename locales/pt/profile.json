@@ -1,5 +1,8 @@
 {
   "tabTitle": "[PT] Profile",
+  "accountTitle": "Conta",
+  "accountSettings": "Conta e definições",
+  "accountBackA11y": "Voltar",
   "planFree": "[PT] Free plan",
   "planPlus": "[PT] Plus plan",
   "planPro": "[PT] Pro plan",

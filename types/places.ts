@@ -7,21 +7,24 @@ export type PlaceCategory =
   | 'shopping'
   | 'accommodation';
 
-/** Explore chip filter: All plus the five categories shown in the UI (no accommodation chip). */
+/** Explore chip filter: All plus categories shown in the UI. */
 export type ExploreCategoryFilter =
   | 'all'
   | 'restaurants'
   | 'attractions'
   | 'outdoor'
   | 'nightlife'
-  | 'shopping';
+  | 'shopping'
+  | 'accommodation';
 
+/** Categories fetched in parallel when filter is "All" (includes accommodation). */
 export const EXPLORE_PARALLEL_CATEGORIES: readonly PlaceCategory[] = [
   'restaurants',
   'attractions',
   'outdoor',
   'nightlife',
   'shopping',
+  'accommodation',
 ] as const;
 
 /** Place row returned from the proxy (maps DB + Google fields). */
@@ -34,6 +37,8 @@ export interface Place {
   lat: number | null;
   lng: number | null;
   rating: number | null;
+  /** From Google `user_ratings_total` when available (cached in `places.metadata`). */
+  user_ratings_total: number | null;
   price_level: number | null;
   /** Google Places `photo_reference` values (safe to expose; not API URLs with a key). */
   photos: string[];

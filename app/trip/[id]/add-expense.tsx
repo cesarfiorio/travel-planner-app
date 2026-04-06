@@ -183,7 +183,7 @@ export default function AddExpenseScreen() {
       Alert.alert(t('errorAmountInvalid'));
       return;
     }
-    const totalCents = toCents(parsed);
+    const totalCents = toCents(parsed, currency);
 
     let splits: { user_id: string; amount_owed_cents: number }[];
     if (splitMode === 'equal') {
@@ -198,7 +198,7 @@ export default function AddExpenseScreen() {
           Alert.alert(t('errorAmountInvalid'));
           return;
         }
-        centsMap[uid] = toCents(n);
+        centsMap[uid] = toCents(n, currency);
       }
       if (!validateCustomSplitsSum(totalCents, centsMap)) {
         Alert.alert(t('errorSplitSum'));

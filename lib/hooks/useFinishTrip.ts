@@ -143,6 +143,7 @@ export function useFinishTrip() {
           published_at: now,
           is_public: true,
           route_geojson: routeGeoJson,
+          cover_photo_url: coverUrl,
           updated_at: now,
         });
         if (crErr) {

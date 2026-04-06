@@ -27,15 +27,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="home" options={{ href: null }} />
       <Tabs.Screen name="map" options={{ href: null }} />
 
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t('profile:tabTitle'),
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
-          ),
-        }}
-      />
+      {/* Order matches design: Explore → Itinerary → Community → Expenses → Profile */}
       <Tabs.Screen
         name="explore"
         options={{
@@ -55,6 +47,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="community"
+        options={{
+          title: t('community:tabTitle'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="expenses"
         options={{
           title: t('expenses:tabTitle'),
@@ -64,11 +65,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="community"
+        name="profile"
         options={{
-          title: t('community:tabTitle'),
+          title: t('profile:tabTitle'),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={size} color={color} />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
         }}
       />

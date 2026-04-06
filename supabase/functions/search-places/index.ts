@@ -62,6 +62,7 @@ type GoogleTextSearchResult = {
   formatted_address?: string;
   geometry?: { location?: { lat?: number; lng?: number } };
   rating?: number;
+  user_ratings_total?: number;
   price_level?: number;
   photos?: Array<{ photo_reference?: string }>;
   opening_hours?: Record<string, unknown>;
@@ -91,6 +92,7 @@ type DbPlaceRow = {
   opening_hours: unknown;
   website: string | null;
   phone: string | null;
+  metadata?: unknown;
 };
 
 function num(v: number | string | null | undefined): number | null {
@@ -115,6 +117,19 @@ function parseOpeningHours(raw: unknown): Record<string, unknown> | null {
   return null;
 }
 
+function ratingsTotalFromMetadata(meta: unknown): number | null {
+  if (meta != null && typeof meta === 'object' && !Array.isArray(meta)) {
+    const v = (meta as Record<string, unknown>).user_ratings_total;
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      return Math.round(v);
+    }
+    if (typeof v === 'string' && /^\d+$/.test(v)) {
+      return Number(v);
+    }
+  }
+  return null;
+}
+
 function rowToPlace(row: DbPlaceRow, category: Category) {
   return {
     id: row.id,
@@ -125,6 +140,7 @@ function rowToPlace(row: DbPlaceRow, category: Category) {
     lat: num(row.latitude),
     lng: num(row.longitude),
     rating: num(row.rating),
+    user_ratings_total: ratingsTotalFromMetadata(row.metadata),
     price_level: row.price_level == null ? null : Math.round(Number(row.price_level)),
     photos: parsePhotos(row.photos),
     opening_hours: parseOpeningHours(row.opening_hours),
@@ -165,6 +181,10 @@ function googleResultToUpsertPayload(
     metadata: {
       source: 'google_text_search',
       types: r.types ?? [],
+      user_ratings_total:
+        typeof r.user_ratings_total === 'number' && Number.isFinite(r.user_ratings_total)
+          ? Math.round(r.user_ratings_total)
+          : undefined,
     },
     updated_at: cachedAt,
   };
@@ -239,7 +259,7 @@ Deno.serve(async (req) => {
   const { data: cachedRows, error: cacheErr } = await admin
     .from('places')
     .select(
-      'id, google_place_id, name, category, formatted_address, latitude, longitude, rating, price_level, photos, opening_hours, website, phone',
+      'id, google_place_id, name, category, formatted_address, latitude, longitude, rating, price_level, photos, opening_hours, website, phone, metadata',
     )
     .eq('destination_normalized', normDest)
     .eq('category', category)
@@ -329,7 +349,7 @@ Deno.serve(async (req) => {
       .from('places')
       .upsert(payload, { onConflict: 'google_place_id' })
       .select(
-        'id, google_place_id, name, category, formatted_address, latitude, longitude, rating, price_level, photos, opening_hours, website, phone',
+        'id, google_place_id, name, category, formatted_address, latitude, longitude, rating, price_level, photos, opening_hours, website, phone, metadata',
       )
       .single();
 

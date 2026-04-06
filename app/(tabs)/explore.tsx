@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,6 +22,9 @@ import { useDebouncedValue } from '../../lib/hooks/useDebouncedValue';
 import { useSearchPlaces, useTripPlaceIds } from '../../lib/hooks/usePlaces';
 import { useAppStore } from '../../lib/store/appStore';
 import type { ExploreCategoryFilter } from '../../types/places';
+
+const SCREEN_BG = '#F3F4F6';
+const ORANGE = '#F05A1A';
 
 export default function ExplorePlacesScreen() {
   const { t } = useTranslation(['explore', 'common', 'trips']);
@@ -59,12 +63,12 @@ export default function ExplorePlacesScreen() {
 
   if (!activeTrip) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 24, paddingHorizontal: 24 }}>
+      <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 24, paddingHorizontal: 24 }}>
         <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 }}>{t('explore:noTripTitle')}</Text>
         <Text style={{ fontSize: 16, color: colors.inactive, lineHeight: 24, marginBottom: 20 }}>{t('explore:noTripBody')}</Text>
         <Pressable
           onPress={() => router.push('/(tabs)/home')}
-          style={{ alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 18, backgroundColor: colors.primarySolid, borderRadius: 12 }}
+          style={{ alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 18, backgroundColor: ORANGE, borderRadius: 12 }}
           accessibilityRole="button"
         >
           <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{t('explore:noTripCta')}</Text>
@@ -76,32 +80,51 @@ export default function ExplorePlacesScreen() {
   const showSkeletons = isPending && places.length === 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12, gap: 8 }}>
-        <Text style={{ flex: 1, fontSize: 20, fontWeight: '800', color: colors.text }} numberOfLines={2}>
-          {destinationTitle}
+    <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 8 }}>
+        <Text style={{ flex: 1, fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5 }} numberOfLines={1}>
+          {t('explore:screenTitle')}
         </Text>
         <TripSwitcher variant="icon" />
       </View>
 
-      <TextInput
-        value={searchText}
-        onChangeText={setSearchText}
-        placeholder={t('explore:searchPlaceholder')}
-        placeholderTextColor={colors.inactive}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 14, gap: 6 }}>
+        <Ionicons name="location-outline" size={18} color="#6B7280" />
+        <Text style={{ fontSize: 15, color: '#6B7280', flex: 1 }} numberOfLines={1}>
+          {destinationTitle}
+        </Text>
+      </View>
+
+      <View
         style={{
-          marginHorizontal: 16,
-          marginBottom: 12,
+          marginHorizontal: 20,
+          marginBottom: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
           paddingHorizontal: 14,
-          paddingVertical: 12,
-          borderRadius: 12,
+          paddingVertical: 4,
+          minHeight: 48,
+          borderRadius: 14,
+          backgroundColor: '#FFFFFF',
           borderWidth: 1,
-          borderColor: colors.border,
-          fontSize: 16,
-          color: colors.text,
+          borderColor: '#E5E7EB',
         }}
-        accessibilityLabel={t('explore:searchPlaceholder')}
-      />
+      >
+        <Ionicons name="search-outline" size={20} color="#9CA3AF" style={{ marginRight: 10 }} />
+        <TextInput
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder={t('explore:searchPlaceholder')}
+          placeholderTextColor="#9CA3AF"
+          style={{
+            flex: 1,
+            fontSize: 16,
+            color: '#111827',
+            paddingVertical: 10,
+          }}
+          accessibilityLabel={t('explore:searchPlaceholder')}
+        />
+      </View>
 
       <CategoryFilter value={category} onChange={setCategory} />
 
@@ -112,15 +135,18 @@ export default function ExplorePlacesScreen() {
           </Text>
           <Pressable
             onPress={() => void refetch()}
-            style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: colors.primarySolid, borderRadius: 12 }}
+            style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: ORANGE, borderRadius: 12 }}
             accessibilityRole="button"
           >
             <Text style={{ color: colors.onPrimary, fontWeight: '600' }}>{t('common:retry')}</Text>
           </Pressable>
         </View>
       ) : showSkeletons ? (
-        <View style={{ paddingTop: 8 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
+        <View style={{ paddingTop: 4 }}>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: '#111827', paddingHorizontal: 20, marginBottom: 12 }}>
+            {t('explore:topPlacesSection')}
+          </Text>
+          {Array.from({ length: 4 }).map((_, i) => (
             <PlaceSkeleton key={i} />
           ))}
         </View>
@@ -129,9 +155,14 @@ export default function ExplorePlacesScreen() {
           data={filteredPlaces}
           keyExtractor={(item) => item.id}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.primary} />
+            <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={ORANGE} />
           }
           contentContainerStyle={{ paddingBottom: insets.bottom + 24, flexGrow: 1 }}
+          ListHeaderComponent={
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#111827', paddingHorizontal: 20, marginBottom: 12, marginTop: 4 }}>
+              {t('explore:topPlacesSection')}
+            </Text>
+          }
           ListEmptyComponent={
             <Text style={{ textAlign: 'center', color: colors.inactive, marginTop: 32, paddingHorizontal: 24 }}>
               {t('explore:noResults')}

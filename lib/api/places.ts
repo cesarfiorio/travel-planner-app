@@ -60,6 +60,11 @@ function assertPlacesPayload(data: unknown): Place[] {
       lat: typeof row.lat === 'number' ? row.lat : row.lat == null ? null : Number(row.lat),
       lng: typeof row.lng === 'number' ? row.lng : row.lng == null ? null : Number(row.lng),
       rating: typeof row.rating === 'number' ? row.rating : row.rating == null ? null : Number(row.rating),
+      user_ratings_total: (() => {
+        const v = row.user_ratings_total;
+        const n = typeof v === 'number' ? v : v == null ? NaN : Number(v);
+        return Number.isFinite(n) ? Math.round(n) : null;
+      })(),
       price_level:
         typeof row.price_level === 'number' ? row.price_level : row.price_level == null ? null : Number(row.price_level),
       photos,
