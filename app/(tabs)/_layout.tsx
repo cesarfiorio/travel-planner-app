@@ -2,26 +2,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { colors } from '../../constants/colors';
+const TAB_ACTIVE = '#F05A1A';
+const TAB_INACTIVE = '#9CA3AF';
+const TAB_BAR_BG = '#FFFFFF';
+const TAB_BORDER = '#E5E7EB';
 
 export default function TabsLayout() {
-  const { t } = useTranslation(['explore', 'trips', 'expenses', 'community', 'profile', 'map']);
+  const { t } = useTranslation(['explore', 'trips', 'expenses', 'community', 'profile']);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.inactive,
+        tabBarActiveTintColor: TAB_ACTIVE,
+        tabBarInactiveTintColor: TAB_INACTIVE,
+        tabBarStyle: {
+          backgroundColor: TAB_BAR_BG,
+          borderTopWidth: 1,
+          borderTopColor: TAB_BORDER,
+        },
       }}
     >
       <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="home" options={{ href: null }} />
+      <Tabs.Screen name="map" options={{ href: null }} />
+
       <Tabs.Screen
-        name="home"
+        name="profile"
         options={{
-          title: t('trips:tripsTabTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          title: t('profile:tabTitle'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -29,8 +40,8 @@ export default function TabsLayout() {
         name="explore"
         options={{
           title: t('explore:tabTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'compass' : 'compass-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -38,8 +49,8 @@ export default function TabsLayout() {
         name="itinerary"
         options={{
           title: t('trips:tabTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -47,17 +58,8 @@ export default function TabsLayout() {
         name="expenses"
         options={{
           title: t('expenses:tabTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="map"
-        options={{
-          title: t('map:tabTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="globe-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'cash' : 'cash-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -65,17 +67,8 @@ export default function TabsLayout() {
         name="community"
         options={{
           title: t('community:tabTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t('profile:tabTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={size} color={color} />
           ),
         }}
       />
