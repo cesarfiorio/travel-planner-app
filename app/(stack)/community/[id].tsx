@@ -19,7 +19,7 @@ import {
 import { captureAndShare } from '../../../lib/utils/shareCard';
 import { parseRoutePlaceNames } from '../../../lib/utils/routeGeoJson';
 
-const SCREEN_BG = '#F3F4F6';
+const SCREEN_BG = '#F9FAFB';
 const ORANGE = '#F05A1A';
 const COVER_H = 220;
 const CARD_RADIUS = 16;

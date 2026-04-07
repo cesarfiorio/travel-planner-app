@@ -6,7 +6,8 @@ import type { TripWithDetails } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
 import { formatTripHeroDateRange } from '../lib/trips/tripDateFormat';
 
-const CARD_RADIUS = 16;
+const CARD_RADIUS = 12;
+const CARD_BORDER = '#E5E7EB';
 
 type Props = {
   trip: TripWithDetails;
@@ -26,34 +27,42 @@ export function SimpleTripListCard({ trip, locale }: Props) {
     router.push(`/trip/${trip.id}`);
   };
 
+  /** Shadow + elevation on `Pressable` is unreliable (especially Android). Outer `View` carries the card chrome. */
   return (
-    <Pressable
-      onPress={open}
-      style={({ pressed }) => ({
+    <View
+      style={{
         marginBottom: 12,
-        padding: 18,
         borderRadius: CARD_RADIUS,
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#E8EAED',
-        opacity: pressed ? 0.96 : 1,
+        borderColor: CARD_BORDER,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.01,
         shadowRadius: 8,
         elevation: 2,
-      })}
-      accessibilityRole="button"
-      accessibilityLabel={title}
+      }}
     >
-      <Text style={{ fontSize: 17, fontWeight: '700', color: '#111827' }} numberOfLines={2}>
-        {title}
-      </Text>
-      {dateLine ? (
-        <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 8 }}>{dateLine}</Text>
-      ) : (
-        <View style={{ marginTop: 4 }} />
-      )}
-    </Pressable>
+      <Pressable
+        onPress={open}
+        style={({ pressed }) => ({
+          borderRadius: CARD_RADIUS,
+          opacity: pressed ? 0.92 : 1,
+        })}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+      >
+        <View style={{ padding: 16 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }} numberOfLines={2}>
+            {title}
+          </Text>
+          {dateLine ? (
+            <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>{dateLine}</Text>
+          ) : (
+            <View style={{ marginTop: 2 }} />
+          )}
+        </View>
+      </Pressable>
+    </View>
   );
 }

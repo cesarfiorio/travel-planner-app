@@ -1,19 +1,20 @@
 import * as Localization from 'expo-localization';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useMemo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  ListRenderItem,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Avatar } from './Avatar';
 import { EmptyTrips } from './EmptyTrips';
 import { FeaturedActiveTripCard } from './FeaturedActiveTripCard';
 import { NewTripFab } from './NewTripFab';
@@ -22,17 +23,19 @@ import { SimpleTripListCard } from './SimpleTripListCard';
 import { colors } from '../constants/colors';
 import { formatErrorMessage } from '../lib/formatError';
 import { useAuth } from '../lib/hooks/useAuth';
+import { useProfile } from '../lib/hooks/useProfile';
 import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../lib/hooks/useSubscription';
-import { useMyTrips } from '../lib/hooks/useTrips';
+import { type TripWithDetails, useMyTrips } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
 import { pickFeaturedTripForHome, sortTripsForHome } from '../lib/trips/tripUi';
 
-const SCREEN_BG = '#FFFFFF';
+/** Light gray so white trip cards (SimpleTripListCard) read clearly against the screen. */
+const SCREEN_BG = '#FAFAFA';
 const SCROLL_BOTTOM_PADDING = 120;
 const ORANGE = '#F05A1A';
 
 type Props = {
-  /** Profile tab shows a link to account & settings. */
+  /** Profile tab: header avatar opens account; no account row in the list. */
   showAccountLink?: boolean;
 };
 
@@ -42,6 +45,7 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
   const insets = useSafeAreaInsets();
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
   const { user } = useAuth();
+  const { data: profile } = useProfile();
   const { data: trips = [], isLoading, isError, error, refetch, isRefetching } = useMyTrips();
   const { isExplorer } = useSubscription();
   const activeTrip = useAppStore((s) => s.activeTrip);
@@ -70,6 +74,11 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
   const fabBottom = Math.max(insets.bottom, 10) + 24;
   const sortedTrips = useMemo(() => sortTripsForHome(trips), [trips]);
 
+  const accountDisplayName =
+    profile?.full_name?.trim() || profile?.display_name?.trim() || t('profile:travelerFallback');
+
+  const goAccount = () => router.push('/(stack)/account');
+
   useEffect(() => {
     if (!sortedTrips.length) {
       return;
@@ -96,6 +105,33 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
     const rest = sortedTrips.filter((x) => x.id !== a.id);
     return { active: a, others: rest };
   }, [sortedTrips, activeTrip?.id]);
+
+  const renderTripRow: ListRenderItem<TripWithDetails> = useCallback(
+    ({ item }) => <SimpleTripListCard trip={item} locale={locale} />,
+    [locale],
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <>
+        {active ? <FeaturedActiveTripCard trip={active} locale={locale} /> : null}
+        {others.length > 0 ? (
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '800',
+              color: '#111827',
+              marginBottom: 12,
+              marginTop: active ? 8 : 0,
+            }}
+          >
+            {t('trips:otherTrips')}
+          </Text>
+        ) : null}
+      </>
+    ),
+    [active, others.length, locale, t],
+  );
 
   if (isLoading) {
     return (
@@ -124,18 +160,53 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
   if (!trips.length) {
     return (
       <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 8, overflow: 'visible' }}>
-        <Text
-          style={{
-            fontSize: 28,
-            fontWeight: '800',
-            color: '#111827',
-            paddingHorizontal: 20,
-            marginBottom: 16,
-            letterSpacing: -0.5,
-          }}
-        >
-          {t('trips:homeTitle')}
-        </Text>
+        {showAccountLink ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 20,
+              marginBottom: 16,
+            }}
+          >
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 28,
+                fontWeight: '800',
+                color: '#111827',
+                letterSpacing: -0.5,
+                marginRight: 12,
+              }}
+              numberOfLines={1}
+            >
+              {t('trips:homeTitle')}
+            </Text>
+            <Pressable
+              onPress={goAccount}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile:accountSettings')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+            >
+              <Avatar name={accountDisplayName} imageUrl={profile?.avatar_url} size={44} />
+            </Pressable>
+          </View>
+        ) : (
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: '800',
+              color: '#111827',
+              paddingHorizontal: 20,
+              marginBottom: 16,
+              letterSpacing: -0.5,
+            }}
+          >
+            {t('trips:homeTitle')}
+          </Text>
+        )}
         <View style={{ flex: 1 }}>
           <EmptyTrips onCreatePress={goNewTrip} />
         </View>
@@ -152,71 +223,68 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 8, overflow: 'visible' }}>
-      <Text
-        style={{
-          fontSize: 28,
-          fontWeight: '800',
-          color: '#111827',
-          paddingHorizontal: 20,
-          marginBottom: 20,
-          letterSpacing: -0.5,
-        }}
-      >
-        {t('trips:homeTitle')}
-      </Text>
+      {showAccountLink ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 20,
+            marginBottom: 20,
+          }}
+        >
+          <Text
+            style={{
+              flex: 1,
+              fontSize: 28,
+              fontWeight: '800',
+              color: '#111827',
+              letterSpacing: -0.5,
+              marginRight: 12,
+            }}
+            numberOfLines={1}
+          >
+            {t('trips:homeTitle')}
+          </Text>
+          <Pressable
+            onPress={goAccount}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('profile:accountSettings')}
+            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+          >
+            <Avatar name={accountDisplayName} imageUrl={profile?.avatar_url} size={44} />
+          </Pressable>
+        </View>
+      ) : (
+        <Text
+          style={{
+            fontSize: 28,
+            fontWeight: '800',
+            color: '#111827',
+            paddingHorizontal: 20,
+            marginBottom: 20,
+            letterSpacing: -0.5,
+          }}
+        >
+          {t('trips:homeTitle')}
+        </Text>
+      )}
 
       <View style={{ flex: 1 }} collapsable={false}>
-        <ScrollView
-          style={{ flex: 1 }}
+        <FlatList
+          data={others}
+          keyExtractor={(item) => item.id}
+          renderItem={renderTripRow}
+          ListHeaderComponent={listHeader}
+          style={{ flex: 1, backgroundColor: SCREEN_BG }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: SCROLL_BOTTOM_PADDING }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={ORANGE} />}
-          showsVerticalScrollIndicator={false}
-        >
-          {active ? <FeaturedActiveTripCard trip={active} locale={locale} /> : null}
-
-          {others.length > 0 ? (
-            <>
-              <Text
-                style={{
-                  fontSize: 17,
-                  fontWeight: '800',
-                  color: '#111827',
-                  marginBottom: 12,
-                  marginTop: active ? 8 : 0,
-                }}
-              >
-                {t('trips:otherTrips')}
-              </Text>
-              {others.map((trip) => (
-                <SimpleTripListCard key={trip.id} trip={trip} locale={locale} />
-              ))}
-            </>
-          ) : null}
-
-          {showAccountLink ? (
-            <Pressable
-              onPress={() => router.push('/(stack)/account')}
-              style={({ pressed }) => ({
-                marginTop: 24,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: 18,
-                paddingHorizontal: 18,
-                borderRadius: 16,
-                backgroundColor: '#F8F9FA',
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-                opacity: pressed ? 0.92 : 1,
-              })}
-              accessibilityRole="button"
-              accessibilityLabel={t('profile:accountSettings')}
-            >
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>{t('profile:accountSettings')}</Text>
-              <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
-            </Pressable>
-          ) : null}
-        </ScrollView>
+          showsVerticalScrollIndicator
+          initialNumToRender={12}
+          windowSize={8}
+          removeClippedSubviews={false}
+        />
       </View>
 
       <NewTripFab

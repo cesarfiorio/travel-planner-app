@@ -11,8 +11,9 @@ import { deriveTripUiStatus } from '../lib/trips/tripUi';
 import { formatTripHeroDateRange } from '../lib/trips/tripDateFormat';
 
 const ORANGE = '#F05A1A';
-const CARD_RADIUS = 20;
+const CARD_RADIUS = 16;
 const HERO_H = 220;
+const FOOTER_PAD = 16;
 
 /** Rotate hero photos for visual variety (Unsplash). */
 const HERO_URLS = [
@@ -60,17 +61,19 @@ export function FeaturedActiveTripCard({ trip, locale }: Props) {
   return (
     <View
       style={{
+        marginBottom: 8,
         borderRadius: CARD_RADIUS,
         backgroundColor: '#FFFFFF',
-        overflow: 'hidden',
-        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.14,
+        shadowRadius: 10,
         elevation: 5,
       }}
     >
+      <View style={{ borderRadius: CARD_RADIUS, overflow: 'hidden' }}>
       <View style={{ height: HERO_H, width: '100%', backgroundColor: '#E5E7EB' }}>
         <Image source={{ uri: heroUrlForTripId(trip.id) }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
         <LinearGradient
@@ -112,19 +115,26 @@ export function FeaturedActiveTripCard({ trip, locale }: Props) {
           ) : null}
         </View>
       </View>
-      <Pressable
-        onPress={openDetail}
-        style={({ pressed }) => ({
-          paddingVertical: 16,
-          paddingHorizontal: 20,
-          backgroundColor: ORANGE,
-          opacity: pressed ? 0.92 : 1,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={t('viewDetails')}
-      >
-        <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' }}>{t('viewDetails')}</Text>
-      </Pressable>
+      <View style={{ backgroundColor: '#F05A1A', padding: 14 }}>
+        <Pressable
+          onPress={openDetail}
+          style={({ pressed }) => ({
+            width: '100%',
+            paddingVertical: 14,
+            paddingHorizontal: 20,
+            borderRadius: 999,
+            backgroundColor: ORANGE,
+            opacity: pressed ? 0.92 : 1,
+          })}
+          accessibilityRole="button"
+          accessibilityLabel={t('viewDetails')}
+        >
+          <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' }}>
+            {t('viewDetails')}
+          </Text>
+        </Pressable>
+      </View>
+      </View>
     </View>
   );
 }

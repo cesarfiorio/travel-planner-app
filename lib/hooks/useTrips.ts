@@ -56,23 +56,82 @@ export const myTripsQueryKey = (userId: string) => ['myTrips', userId] as const;
 
 export const tripDetailQueryKey = (tripId: string) => ['trip', tripId] as const;
 
+const PROFILE_ID_BATCH = 100;
+const TRIP_PAGE_SIZE = 1000;
+const TRIP_MEMBERS_IN_CHUNK = 120;
+
 async function fetchProfilesForIds(ids: string[]): Promise<Map<string, MemberProfileBrief>> {
   const map = new Map<string, MemberProfileBrief>();
   const unique = [...new Set(ids)].filter(Boolean);
   if (unique.length === 0 || !supabase) {
     return map;
   }
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, display_name, avatar_url')
-    .in('id', unique);
-  if (error || !data) {
-    return map;
-  }
-  for (const p of data) {
-    map.set(p.id, p);
+  for (let i = 0; i < unique.length; i += PROFILE_ID_BATCH) {
+    const chunk = unique.slice(i, i + PROFILE_ID_BATCH);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, display_name, avatar_url')
+      .in('id', chunk);
+    if (error) {
+      logger.error('[RouteFlow] fetchProfilesForIds', error);
+      continue;
+    }
+    if (!data) {
+      continue;
+    }
+    for (const p of data) {
+      map.set(p.id, p);
+    }
   }
   return map;
+}
+
+async function fetchAllTripsRowsOrdered(): Promise<Tables<'trips'>[]> {
+  if (!supabase) {
+    return [];
+  }
+  const out: Tables<'trips'>[] = [];
+  let from = 0;
+  for (;;) {
+    const { data: page, error } = await supabase
+      .from('trips')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .range(from, from + TRIP_PAGE_SIZE - 1);
+    if (error) {
+      logger.error('[RouteFlow] useMyTrips trips', error);
+      throw error;
+    }
+    if (!page?.length) {
+      break;
+    }
+    out.push(...page);
+    if (page.length < TRIP_PAGE_SIZE) {
+      break;
+    }
+    from += TRIP_PAGE_SIZE;
+  }
+  return out;
+}
+
+async function fetchTripMembersForTripIds(tripIds: string[]): Promise<TripMembersRow[]> {
+  if (!supabase || tripIds.length === 0) {
+    return [];
+  }
+  const all: TripMembersRow[] = [];
+  for (let i = 0; i < tripIds.length; i += TRIP_MEMBERS_IN_CHUNK) {
+    const chunk = tripIds.slice(i, i + TRIP_MEMBERS_IN_CHUNK);
+    const { data, error: membersError } = await supabase
+      .from('trip_members')
+      .select('trip_id, user_id, role, joined_at')
+      .in('trip_id', chunk);
+    if (membersError) {
+      logger.error('[RouteFlow] useMyTrips trip_members', membersError);
+      throw membersError;
+    }
+    all.push(...(data ?? []));
+  }
+  return all;
 }
 
 function mapTripRow(row: TripRowWithMembers, profileMap: Map<string, MemberProfileBrief>): TripWithDetails {
@@ -108,30 +167,13 @@ export function useMyTrips() {
         return [];
       }
 
-      const { data: tripsRaw, error } = await supabase
-        .from('trips')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        logger.error('[RouteFlow] useMyTrips trips', error);
-        throw error;
-      }
-      const tripsList = tripsRaw ?? [];
+      const tripsList = await fetchAllTripsRowsOrdered();
       if (tripsList.length === 0) {
         return [];
       }
 
       const tripIds = tripsList.map((x) => x.id);
-      const { data: membersRows, error: membersError } = await supabase
-        .from('trip_members')
-        .select('trip_id, user_id, role, joined_at')
-        .in('trip_id', tripIds);
-
-      if (membersError) {
-        logger.error('[RouteFlow] useMyTrips trip_members', membersError);
-        throw membersError;
-      }
+      const membersRows = await fetchTripMembersForTripIds(tripIds);
 
       const rows = attachMembersToTrips(tripsList, membersRows);
       const allUserIds: string[] = [];

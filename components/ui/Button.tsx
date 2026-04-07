@@ -25,7 +25,7 @@ export interface ButtonProps {
 }
 
 const BG: Record<ButtonVariant, string> = {
-  primary: '#EA580C',
+  primary: '#F0652B',
   secondary: '#F0F0F0',
   outline: 'transparent',
   ghost: 'transparent',
@@ -35,15 +35,15 @@ const BG: Record<ButtonVariant, string> = {
 const TEXT_COLOR: Record<ButtonVariant, string> = {
   primary: '#FFFFFF',
   secondary: colors.text,
-  outline: '#EA580C',
-  ghost: '#EA580C',
+  outline: '#F0652B',
+  ghost: '#F0652B',
   destructive: '#FFFFFF',
 };
 
 const BORDER: Record<ButtonVariant, string | undefined> = {
   primary: undefined,
   secondary: undefined,
-  outline: '#EA580C',
+  outline: '#F0652B',
   ghost: undefined,
   destructive: undefined,
 };
@@ -83,7 +83,7 @@ export function Button({
         paddingHorizontal: PADDING_H[size],
         borderRadius: size === 'lg' ? 14 : 12,
         backgroundColor: bg,
-        borderWidth: border ? 1.5 : 0,
+        borderWidth: border ? 1.75 : 0,
         borderColor: border ?? 'transparent',
         width: fullWidth ? '100%' : undefined,
         opacity: disabled ? 0.4 : pressed ? 0.85 : 1,

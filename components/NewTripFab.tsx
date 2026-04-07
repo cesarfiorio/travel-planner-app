@@ -50,7 +50,7 @@ export function NewTripFab({ bottom, label, accessibilityLabel, onPress, onLongP
             borderRadius: 999,
             backgroundColor: FAB_ORANGE,
             alignSelf: 'flex-end',
-            paddingVertical: 10,
+            paddingVertical: 16,
             paddingHorizontal: 24,
             ...shadowWrap,
           }}
@@ -64,15 +64,17 @@ export function NewTripFab({ bottom, label, accessibilityLabel, onPress, onLongP
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              paddingVertical: 14,
+              paddingVertical: 16,
               paddingHorizontal: 20,
               opacity: pressed ? 0.92 : 1,
+              flexWrap: 'nowrap',
             })}
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
           >
-            <Ionicons name="add" size={24} color="#FFFFFF" style={{ marginRight: 10 }} />
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 }}>{label}</Text>
+            <Text 
+            numberOfLines={1}
+            style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3, flexShrink: 1 }}>{label}</Text>
           </Pressable>
         </View>
       </View>

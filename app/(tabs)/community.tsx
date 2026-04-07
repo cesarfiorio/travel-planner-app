@@ -20,7 +20,7 @@ import {
   useToggleRouteSave,
 } from '../../lib/hooks/useCommunityRoutes';
 
-const SCREEN_BG = '#F3F4F6';
+const SCREEN_BG = '#F9FAFB';
 const ORANGE = '#F05A1A';
 
 type PillId = 'all' | 'solo' | 'couple' | 'family' | 'friends' | 'adventure';
