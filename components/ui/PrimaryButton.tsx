@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
-import { COLORS, FONT, RADIUS } from '../../constants/theme';
+import { COLORS, FONT, RADIUS, SHADOW } from '../../constants/theme';
 
 export interface PrimaryButtonProps {
   label: string;
@@ -12,6 +12,8 @@ export interface PrimaryButtonProps {
   size?: 'sm' | 'md' | 'lg';
   variant?: 'filled' | 'outline' | 'ghost';
   leftIcon?: ReactNode;
+  /** Soft drop shadow (account-style floating capsule). */
+  floating?: boolean;
 }
 
 const SIZE_STYLES = {
@@ -29,6 +31,7 @@ export function PrimaryButton({
   size = 'md',
   variant = 'filled',
   leftIcon,
+  floating = false,
 }: PrimaryButtonProps) {
   const s = SIZE_STYLES[size];
   const isDisabled = disabled || loading;
@@ -41,6 +44,8 @@ export function PrimaryButton({
 
   return (
     <Pressable
+      // NativeWind replaces Pressable; without this, `style` (background, etc.) may not apply.
+      {...{ cssInterop: false }}
       onPress={onPress}
       disabled={isDisabled}
       accessibilityRole="button"
@@ -49,7 +54,7 @@ export function PrimaryButton({
       style={({ pressed }) => ({
         height: s.height,
         paddingHorizontal: s.paddingHorizontal,
-        borderRadius: RADIUS.pill,
+        borderRadius: RADIUS.circle,
         backgroundColor,
         borderWidth,
         borderColor,
@@ -60,6 +65,7 @@ export function PrimaryButton({
         justifyContent: 'center',
         gap: 8,
         opacity: disabled ? 0.5 : pressed && !isDisabled ? 0.92 : 1,
+        ...(floating ? SHADOW.pill : {}),
       })}
     >
       {loading ? (
@@ -70,7 +76,7 @@ export function PrimaryButton({
           <Text
             style={{
               fontSize: s.fontSize,
-              fontWeight: FONT.extrabold,
+              fontWeight: FONT.bold,
               color: textColor,
             }}
           >

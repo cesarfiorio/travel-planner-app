@@ -123,6 +123,7 @@ export function useUpdateProfileName() {
             full_name: trimmed,
             display_name: trimmed,
             avatar_url: null,
+            bio: null,
             plan: 'free',
             plan_expires_at: null,
             created_at: nowIso(),
@@ -142,6 +143,41 @@ export function useUpdateProfileName() {
     onError: (_err, _vars, context) => {
       if (context?.previous !== undefined) {
         queryClient.setQueryData(profileQueryKey(userId), context.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
+    },
+  });
+}
+
+export function useSaveProfile() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async (vars: { fullName: string; bio: string | null }) => {
+      if (!supabase || !userId) {
+        throw new Error('Not signed in');
+      }
+      const trimmedName = vars.fullName.trim();
+      if (!trimmedName) {
+        throw new Error('Name cannot be empty');
+      }
+      const bioTrim = vars.bio?.trim() ?? '';
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: trimmedName,
+          display_name: trimmedName,
+          bio: bioTrim.length > 0 ? bioTrim : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+      if (error) {
+        const msg = formatErrorMessage(error, i18n.t('common:profileUpdateDbHint'));
+        throw new Error(msg);
       }
     },
     onSettled: () => {

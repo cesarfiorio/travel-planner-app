@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItineraryPlaceRow } from '../../components/ItineraryPlaceRow';
 import { colors } from '../../constants/colors';
+import { COLORS, FONT, LAYOUT, RADIUS, SHADOW, SPACING } from '../../constants/theme';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useItinerary } from '../../lib/hooks/useItinerary';
 import { itineraryShortDateForDay } from '../../lib/itinerary/dayDate';
@@ -116,51 +117,83 @@ export default function ItineraryScreen() {
   }
 
   const headerBlock = (
-    <>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 8 }}>
-        <Text style={{ flex: 1, fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5 }} numberOfLines={2}>
-          {t('screenTitle')}
-        </Text>
+    <View
+      style={{
+        backgroundColor: COLORS.cardBg,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        paddingTop: insets.top + SPACING.sm,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          paddingHorizontal: SPACING.xl,
+        }}
+      >
+        <View style={{ flex: 1, marginRight: SPACING.md, minWidth: 0 }}>
+          <Text
+            style={{
+              fontSize: FONT.h1,
+              fontWeight: FONT.extrabold,
+              color: COLORS.textPrimary,
+              letterSpacing: -0.5,
+            }}
+            numberOfLines={2}
+          >
+            {t('screenTitle')}
+          </Text>
+          {subtitle ? (
+            <Text
+              style={{
+                marginTop: SPACING.xs,
+                fontSize: FONT.base,
+                color: COLORS.textSecondary,
+              }}
+              numberOfLines={2}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
         <Pressable
           onPress={() => router.push('/(tabs)/explore')}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            backgroundColor: ORANGE,
+          style={({ pressed }) => ({
+            width: LAYOUT.itineraryHeaderFab,
+            height: LAYOUT.itineraryHeaderFab,
+            borderRadius: RADIUS.circle,
+            backgroundColor: COLORS.primary,
             alignItems: 'center',
             justifyContent: 'center',
-            marginLeft: 12,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 4,
-            elevation: 4,
-          }}
+            opacity: pressed ? 0.92 : 1,
+            ...SHADOW.md,
+          })}
           accessibilityRole="button"
           accessibilityLabel={t('itineraryAddPlaceFabA11y')}
         >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
+          <Ionicons name="add" size={FONT.xxl + SPACING.xs} color={COLORS.textOnPrimary} />
         </Pressable>
       </View>
-      {subtitle ? (
-        <Text style={{ fontSize: 15, color: '#6B7280', paddingHorizontal: 20, marginBottom: 16 }} numberOfLines={2}>
-          {subtitle}
-        </Text>
-      ) : (
-        <View style={{ marginBottom: 16 }} />
-      )}
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator
-        contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 8 }}
-        style={{ marginBottom: 8 }}
+        contentContainerStyle={{
+          paddingHorizontal: SPACING.xl,
+          paddingTop: SPACING.lg,
+          paddingBottom: SPACING.sm,
+          gap: SPACING.sm,
+          flexDirection: 'row',
+          alignItems: 'stretch',
+        }}
+        style={{ marginBottom: SPACING.sm }}
       >
         {dayNumbers.map((day) => {
           const selected = selectedDay === day;
           const dateShort = itineraryShortDateForDay(activeTrip.start_date ?? null, day, locale);
-          const label =
+          const a11yLabel =
             dateShort.length > 0
               ? t('itineraryDayChipLabel', { date: dateShort, day })
               : t('itineraryDayChipDayOnly', { day });
@@ -169,28 +202,54 @@ export default function ItineraryScreen() {
               key={day}
               onPress={() => setSelectedDay(day)}
               style={{
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                borderRadius: 14,
-                backgroundColor: selected ? ORANGE : '#FFFFFF',
-                borderWidth: 1,
-                borderColor: selected ? ORANGE : '#E5E7EB',
+                minWidth: LAYOUT.itineraryDayPillMinWidth,
+                paddingVertical: SPACING.sm,
+                paddingHorizontal: SPACING.lg,
+                borderRadius: RADIUS.xl,
+                backgroundColor: selected ? COLORS.primary : COLORS.cardBg,
+                borderWidth: selected ? 0 : 1,
+                borderColor: COLORS.border,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              accessibilityLabel={label}
+              accessibilityLabel={a11yLabel}
             >
-              <Text style={{ fontSize: 14, fontWeight: selected ? '700' : '600', color: selected ? '#FFFFFF' : '#6B7280' }}>{label}</Text>
+              {dateShort ? (
+                <Text
+                  style={{
+                    fontSize: FONT.sm,
+                    fontWeight: FONT.medium,
+                    color: selected ? COLORS.textOnPrimary : COLORS.textTertiary,
+                    opacity: selected ? 0.9 : 1,
+                    textAlign: 'center',
+                  }}
+                >
+                  {dateShort}
+                </Text>
+              ) : null}
+              <Text
+                style={{
+                  fontSize: FONT.md,
+                  fontWeight: FONT.bold,
+                  color: selected ? COLORS.textOnPrimary : COLORS.textPrimary,
+                  textAlign: 'center',
+                  marginTop: dateShort ? SPACING.xs : 0,
+                }}
+              >
+                {t('itineraryDayChipDayOnly', { day })}
+              </Text>
             </Pressable>
           );
         })}
       </ScrollView>
-    </>
+    </View>
   );
 
   if (rawSections.length === 0 || rawSections.every((s) => s.data.length === 0)) {
     return (
-      <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 8 }}>
+      <View style={{ flex: 1, backgroundColor: SCREEN_BG }}>
         {headerBlock}
         <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 24 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 }}>{t('itineraryEmptyTitle')}</Text>
@@ -208,7 +267,7 @@ export default function ItineraryScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 8 }}>
+    <View style={{ flex: 1, backgroundColor: 'SCREEN_BG' }}>
       {headerBlock}
 
       <FlatList
@@ -228,7 +287,7 @@ export default function ItineraryScreen() {
           </Text>
         }
         renderItem={({ item, index }) => (
-          <View style={{ marginBottom: 16 }}>
+          <View style={{ marginBottom: 10 }}>
             <ItineraryPlaceRow
               row={item}
               accessToken={session?.access_token}
@@ -242,26 +301,26 @@ export default function ItineraryScreen() {
 
       <View
         style={{
-          paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: Math.max(16, insets.bottom + 8),
-          backgroundColor: SCREEN_BG,
+          paddingHorizontal: 16,
+          paddingTop: 2,
+          paddingBottom: Math.min(2, insets.bottom + 1),
+          backgroundColor: '#00000000',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
+          borderTopColor: '#00000000',
         }}
       >
         <Pressable
           onPress={() => router.push('/(tabs)/explore')}
           style={{
             paddingVertical: 16,
-            borderRadius: 14,
+            borderRadius: 9999,
             backgroundColor: ORANGE,
             alignItems: 'center',
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.12,
-            shadowRadius: 6,
-            elevation: 4,
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+            elevation: 1,
           }}
           accessibilityRole="button"
           accessibilityLabel={t('itineraryAddActivity')}

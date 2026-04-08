@@ -24,6 +24,8 @@ export const COLORS = {
   success: '#10B981',
   successLight: '#D1FAE5',
   danger: '#EF4444',
+  /** Softer outline for danger pills (e.g. Delete Account). */
+  dangerBorder: '#F87171',
   dangerLight: '#FEE2E2',
   warning: '#F59E0B',
   warningLight: '#FEF3C7',
@@ -101,4 +103,28 @@ export const SHADOW = {
     shadowRadius: 12,
     elevation: 6,
   },
+  /** Floating full-width capsules (account actions) — subtle, equal across stack */
+  pill: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  /** No lift — e.g. outlined danger pills */
+  none: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+} as const;
+
+/** Itinerary header / day chips */
+export const LAYOUT = {
+  itineraryHeaderFab: 44,
+  itineraryDayPillMinWidth: 72,
+  profileAvatarLarge: 120,
+  profileCameraFab: 40,
 } as const;

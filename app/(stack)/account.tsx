@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -15,83 +18,111 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '../../components/Avatar';
-import { Button } from '../../components/ui';
-import { LanguagePicker } from '../../components/LanguagePicker';
-import { colors } from '../../constants/colors';
+import { Card } from '../../components/ui/Card';
+import { PrimaryButton } from '../../components/ui/PrimaryButton';
+import { SUPPORTED_LANGUAGES } from '../../constants/languages';
+import { COLORS, FONT, LAYOUT, RADIUS, SHADOW, SPACING } from '../../constants/theme';
 import { formatErrorMessage } from '../../lib/formatError';
-import { useSavedRoutes } from '../../lib/hooks/useCommunityRoutes';
-import type { CommunityRouteVm } from '../../lib/hooks/useCommunityRoutes';
-import {
-  useCompletedTripsCount,
-  useProfile,
-  useUpdateProfileName,
-} from '../../lib/hooks/useProfile';
+import { isAppLanguageCode, setAppLanguage, type AppLanguageCode } from '../../lib/i18n';
+import { useAuth } from '../../lib/hooks/useAuth';
+import { profileQueryKey, useProfile, useSaveProfile } from '../../lib/hooks/useProfile';
+import { uploadProfileAvatar } from '../../lib/storage/uploadProfileAvatar';
 import { deleteOwnAccount, signOut } from '../../lib/supabase/auth';
+import { hasSupabaseEnv, supabase } from '../../lib/supabase';
 
-function savedRouteTipPreview(tip: string | null | undefined): string {
-  const s = (tip ?? '').trim();
-  if (s.length <= 60) {
-    return s;
-  }
-  return `${s.slice(0, 60)}…`;
+function languageCodeFromI18n(i18nLanguage: string): AppLanguageCode {
+  const base = i18nLanguage.split('-')[0] ?? 'en';
+  return isAppLanguageCode(base) ? base : 'en';
 }
 
 export default function AccountScreen() {
-  const { t } = useTranslation(['profile', 'common', 'community']);
+  const { t, i18n } = useTranslation(['profile', 'common', 'trips']);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
   const { data: profile, isLoading, isError, error, refetch } = useProfile();
-  const { data: completedCount = 0, isLoading: isCountLoading } = useCompletedTripsCount();
-  const { data: savedRoutes = [], isLoading: savedRoutesLoading } = useSavedRoutes();
-  const updateName = useUpdateProfileName();
+  const saveProfile = useSaveProfile();
 
-  const planBadgeLabel = (plan: string | undefined): string => {
-    const p = (plan ?? 'free').toLowerCase();
-    if (p === 'plus') {
-      return t('profile:planPlus');
-    }
-    if (p === 'pro') {
-      return t('profile:planPro');
-    }
-    if (p === 'explorer') {
-      return t('profile:planExplorer');
-    }
-    return t('profile:planFree');
-  };
+  const [fullNameDraft, setFullNameDraft] = useState('');
+  const [bioDraft, setBioDraft] = useState('');
+  const [langModal, setLangModal] = useState(false);
+  const avatarBusy = useMutation({
+    mutationFn: async (localUri: string) => {
+      if (!supabase || !hasSupabaseEnv || !userId) {
+        throw new Error('Not configured');
+      }
+      const url = await uploadProfileAvatar(localUri, userId);
+      if (!url) {
+        throw new Error('Upload failed');
+      }
+      const { error: upErr } = await supabase
+        .from('profiles')
+        .update({ avatar_url: url, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+      if (upErr) {
+        throw upErr;
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: profileQueryKey(userId) });
+    },
+  });
 
   const displayName =
     profile?.full_name?.trim() || profile?.display_name?.trim() || t('profile:travelerFallback');
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(displayName);
-
   useEffect(() => {
-    if (!isEditing) {
-      setEditName(displayName);
+    if (!profile) {
+      return;
     }
-  }, [displayName, isEditing]);
+    setFullNameDraft(profile.full_name?.trim() || profile.display_name?.trim() || '');
+    setBioDraft(profile.bio?.trim() ?? '');
+  }, [profile?.id, profile?.full_name, profile?.display_name, profile?.bio]);
 
-  const startEdit = () => {
-    setEditName(displayName);
-    setIsEditing(true);
+  const activeLangCode = useMemo(() => languageCodeFromI18n(i18n.language), [i18n.language]);
+  const activeLangLabel =
+    SUPPORTED_LANGUAGES.find((l) => l.code === activeLangCode)?.nativeName ??
+    SUPPORTED_LANGUAGES[0]?.nativeName;
+
+  const pickAvatar = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(t('profile:photoPermissionTitle'), t('profile:photoPermissionMessage'));
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (res.canceled || !res.assets[0]?.uri) {
+      return;
+    }
+    avatarBusy.mutate(res.assets[0].uri, {
+      onError: (e) =>
+        Alert.alert(
+          t('common:somethingWentWrong'),
+          formatErrorMessage(e, t('profile:photoPickFailed')),
+        ),
+    });
   };
 
-  const cancelEdit = () => {
-    setEditName(displayName);
-    setIsEditing(false);
-  };
-
-  const saveEdit = () => {
-    const trimmed = editName.trim();
+  const onSave = () => {
+    const trimmed = fullNameDraft.trim();
     if (!trimmed) {
       Alert.alert(t('profile:invalidNameTitle'), t('profile:invalidNameMessage'));
       return;
     }
-    updateName.mutate(trimmed, {
-      onSuccess: () => setIsEditing(false),
-      onError: (e) =>
-        Alert.alert(t('common:updateFailed'), formatErrorMessage(e, t('common:tryAgain'))),
-    });
+    saveProfile.mutate(
+      { fullName: trimmed, bio: bioDraft.trim() || null },
+      {
+        onError: (e) =>
+          Alert.alert(t('common:updateFailed'), formatErrorMessage(e, t('common:tryAgain'))),
+      },
+    );
   };
 
   const confirmDelete = () => {
@@ -116,6 +147,18 @@ export default function AccountScreen() {
     ]);
   };
 
+  const fieldLabelStyle = {
+    fontSize: FONT.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+  };
+  const fieldValueStyle = {
+    fontSize: FONT.lg,
+    fontWeight: FONT.bold,
+    color: COLORS.textPrimary,
+    padding: 0,
+  };
+
   if (isLoading) {
     return (
       <View
@@ -123,11 +166,13 @@ export default function AccountScreen() {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: colors.background,
+          backgroundColor: COLORS.pageBg,
         }}
       >
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 12, color: colors.inactive }}>{t('common:loadingProfile')}</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: SPACING.md, fontSize: FONT.base, color: COLORS.textSecondary }}>
+          {t('common:loadingProfile')}
+        </Text>
       </View>
     );
   }
@@ -139,302 +184,280 @@ export default function AccountScreen() {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          padding: 24,
-          backgroundColor: colors.background,
+          padding: SPACING.xl,
+          backgroundColor: COLORS.pageBg,
         }}
       >
-        <Text style={{ color: colors.text, textAlign: 'center', marginBottom: 16 }}>
+        <Text style={{ color: COLORS.textPrimary, textAlign: 'center', marginBottom: SPACING.lg }}>
           {error instanceof Error ? error.message : t('common:couldNotLoadProfile')}
         </Text>
-        <Pressable
-          onPress={() => void refetch()}
-          style={{
-            paddingVertical: 12,
-            paddingHorizontal: 20,
-            backgroundColor: colors.primary,
-            borderRadius: 12,
-          }}
-        >
-          <Text style={{ color: '#ffffff', fontWeight: '600' }}>{t('common:retry')}</Text>
-        </Pressable>
+        <PrimaryButton label={t('common:retry')} onPress={() => void refetch()} variant="outline" size="md" />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.pageBg }}>
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingTop: insets.top + 8,
-          paddingBottom: 12,
-          paddingHorizontal: 16,
+          paddingTop: insets.top + SPACING.sm,
+          paddingBottom: SPACING.md,
+          paddingHorizontal: SPACING.xl,
+          backgroundColor: COLORS.cardBg,
+          borderBottomWidth: 1,
+          borderBottomColor: COLORS.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('profile:accountBackA11y')}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={SPACING.md}
+          accessibilityRole="button"
+          accessibilityLabel={t('profile:accountBackA11y')}
+        >
+          <Ionicons name="arrow-back" size={FONT.xxl + SPACING.xs} color={COLORS.textPrimary} />
         </Pressable>
-        <Text style={{ marginLeft: 12, fontSize: 20, fontWeight: '800', color: colors.text }}>{t('profile:accountTitle')}</Text>
+        <Text
+          style={{
+            marginLeft: SPACING.sm,
+            fontSize: FONT.h1,
+            fontWeight: FONT.bold,
+            color: COLORS.textPrimary,
+          }}
+        >
+          {t('profile:accountTitle')}
+        </Text>
       </View>
+
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
-        nestedScrollEnabled
+        contentContainerStyle={{
+          paddingHorizontal: SPACING.xl,
+          paddingTop: SPACING.xl,
+          paddingBottom: SPACING.xxxl + insets.bottom,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={false}
       >
-        <View style={{ alignItems: 'center', marginBottom: 24 }}>
-          <Avatar name={displayName} imageUrl={profile.avatar_url} size={96} />
-          <View
-            style={{
-              marginTop: 12,
-              paddingHorizontal: 14,
-              paddingVertical: 6,
-              borderRadius: 999,
-              backgroundColor: '#FFF3EC',
-            }}
-          >
-            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 12 }}>
-              {planBadgeLabel(profile.plan)}
-            </Text>
+        <View style={{ alignSelf: 'center', marginBottom: SPACING.xl }}>
+          <View style={{ position: 'relative' }}>
+            <Avatar name={displayName} imageUrl={profile.avatar_url} size={LAYOUT.profileAvatarLarge} />
+            <Pressable
+              onPress={() => void pickAvatar()}
+              disabled={avatarBusy.isPending}
+              style={({ pressed }) => ({
+                position: 'absolute',
+                right: 0,
+                bottom: 0,
+                width: LAYOUT.profileCameraFab,
+                height: LAYOUT.profileCameraFab,
+                borderRadius: RADIUS.circle,
+                backgroundColor: COLORS.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed || avatarBusy.isPending ? 0.85 : 1,
+              })}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile:changePhotoA11y')}
+            >
+              {avatarBusy.isPending ? (
+                <ActivityIndicator color={COLORS.textOnPrimary} size="small" />
+              ) : (
+                <Ionicons name="camera" size={FONT.lg} color={COLORS.textOnPrimary} />
+              )}
+            </Pressable>
           </View>
         </View>
 
-        {isEditing ? (
-          <>
-            <Text style={{ fontSize: 13, color: colors.inactive, marginBottom: 6 }}>{t('common:name')}</Text>
-            <TextInput
-              value={editName}
-              onChangeText={setEditName}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 12,
-                padding: 14,
-                fontSize: 17,
-                color: colors.text,
-                marginBottom: 16,
-              }}
-              autoCapitalize="words"
-              accessibilityLabel={t('profile:editDisplayNameA11y')}
-            />
-            <View style={{ flexDirection: 'row' }}>
-              <Pressable
-                onPress={cancelEdit}
-                style={{
-                  flex: 1,
-                  marginRight: 8,
-                  padding: 14,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ fontWeight: '600', color: colors.text }}>{t('common:cancel')}</Text>
-              </Pressable>
-              <Pressable
-                onPress={saveEdit}
-                disabled={updateName.isPending}
-                style={{
-                  flex: 1,
-                  marginLeft: 8,
-                  padding: 14,
-                  borderRadius: 12,
-                  backgroundColor: colors.primary,
-                  alignItems: 'center',
-                  opacity: updateName.isPending ? 0.7 : 1,
-                }}
-              >
-                <Text style={{ fontWeight: '600', color: '#ffffff' }}>{t('common:save')}</Text>
-              </Pressable>
-            </View>
-          </>
-        ) : (
-          <>
-            <Text
-              style={{
-                fontSize: 24,
-                fontWeight: '700',
-                color: colors.text,
-                textAlign: 'center',
-                marginBottom: 8,
-              }}
-            >
-              {displayName}
+        <Card style={{ marginBottom: SPACING.md }} padding={SPACING.lg}>
+          <Text style={fieldLabelStyle}>{t('profile:fullNameLabel')}</Text>
+          <TextInput
+            value={fullNameDraft}
+            onChangeText={setFullNameDraft}
+            style={fieldValueStyle}
+            autoCapitalize="words"
+            placeholderTextColor={COLORS.textTertiary}
+          />
+        </Card>
+
+        <Card style={{ marginBottom: SPACING.md }} padding={SPACING.lg}>
+          <Text style={fieldLabelStyle}>{t('profile:emailLabel')}</Text>
+          <Text style={fieldValueStyle}>{user?.email ?? '—'}</Text>
+        </Card>
+
+        <Card style={{ marginBottom: SPACING.md }} padding={SPACING.lg}>
+          <Text style={fieldLabelStyle}>{t('profile:aboutMeLabel')}</Text>
+          <TextInput
+            value={bioDraft}
+            onChangeText={setBioDraft}
+            style={[fieldValueStyle, { fontWeight: FONT.regular, minHeight: SPACING.xxxl * 2 }]}
+            multiline
+            textAlignVertical="top"
+            placeholder={t('profile:aboutMePlaceholder')}
+            placeholderTextColor={COLORS.textTertiary}
+          />
+        </Card>
+
+        <Card style={{ marginBottom: SPACING.xl }} padding={SPACING.lg}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
+            <Ionicons name="globe-outline" size={FONT.xl} color={COLORS.textPrimary} style={{ marginRight: SPACING.sm }} />
+            <Text style={{ fontSize: FONT.lg, fontWeight: FONT.semibold, color: COLORS.textPrimary }}>
+              {t('profile:languageCardTitle')}
             </Text>
-            <Pressable onPress={startEdit} style={{ alignSelf: 'center', marginBottom: 24 }}>
-              <Text style={{ color: colors.primary, fontWeight: '600' }}>{t('profile:editProfile')}</Text>
-            </Pressable>
-          </>
-        )}
-
-        <View
-          style={{
-            paddingVertical: 16,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-            marginTop: 8,
-          }}
-        >
-          <Text style={{ fontSize: 14, color: colors.inactive, marginBottom: 4 }}>
-            {t('profile:tripsCompleted')}
-          </Text>
-          {isCountLoading ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : (
-            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text }}>{completedCount}</Text>
-          )}
-        </View>
-
-        <View
-          style={{
-            marginTop: 24,
-            paddingTop: 20,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>
-            {t('profile:savedRoutes')}
-          </Text>
-          {savedRoutesLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginBottom: 8 }} />
-          ) : savedRoutes.length === 0 ? (
-            <View>
-              <Text style={{ fontSize: 14, color: colors.inactive, lineHeight: 20, marginBottom: 12 }}>
-                {t('profile:savedRoutesEmpty')}
-              </Text>
-              <Button
-                label={t('profile:savedRoutesBrowseCommunity')}
-                onPress={() => router.push('/(tabs)/community')}
-                variant="outline"
-                size="md"
-                accessibilityLabel={t('profile:savedRoutesBrowseCommunity')}
-              />
-            </View>
-          ) : (
-            <FlatList
-              horizontal
-              data={savedRoutes}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              nestedScrollEnabled
-              contentContainerStyle={{ gap: 12, paddingRight: 4 }}
-              renderItem={({ item: r }: { item: CommunityRouteVm }) => {
-                const dest = r.destination?.trim() || r.title;
-                const durationLabel =
-                  r.duration_days != null
-                    ? t('community:durationDays', { count: r.duration_days })
-                    : t('community:durationUnknown');
-                const preview = savedRouteTipPreview(r.tip);
-                return (
-                  <Pressable
-                    onPress={() => router.push(`/(stack)/community/${r.id}`)}
-                    style={{
-                      width: 228,
-                      padding: 14,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      backgroundColor: '#fff',
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={dest}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }} numberOfLines={2}>
-                      {dest}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 6 }} numberOfLines={1}>
-                      {r.creatorName}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 4 }} numberOfLines={1}>
-                      {durationLabel}
-                    </Text>
-                    {preview ? (
-                      <Text style={{ fontSize: 12, color: colors.text, marginTop: 8, lineHeight: 16 }} numberOfLines={2}>
-                        {preview}
-                      </Text>
-                    ) : null}
-                  </Pressable>
-                );
-              }}
-            />
-          )}
-        </View>
-
-        <View
-          style={{
-            marginTop: 24,
-            paddingTop: 20,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
-            {t('common:settings')}
-          </Text>
-          <LanguagePicker />
-        </View>
-
-        <View style={{ marginTop: 20 }}>
-          <Button
-            label={t('profile:manageSubscription')}
-            onPress={() => router.push('/(stack)/paywall')}
-            variant="outline"
-            size="lg"
-            fullWidth
-            accessibilityLabel={t('profile:manageSubscriptionA11y')}
-          />
-        </View>
-
-        <View style={{ marginTop: 16 }}>
-          <Button
-            label={t('profile:signOut')}
-            onPress={() => void signOut()}
-            variant="destructive"
-            size="lg"
-            fullWidth
-            accessibilityLabel={t('profile:signOutA11y')}
-          />
-        </View>
-
-        <View
-          style={{
-            marginTop: 32,
-            paddingTop: 24,
-            borderTopWidth: 1,
-            borderTopColor: '#FECACA',
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 12,
-              color: '#DC2626',
-              marginBottom: 12,
-              textAlign: 'center',
-            }}
-          >
-            {t('profile:destructiveZone')}
-          </Text>
+          </View>
           <Pressable
-            onPress={confirmDelete}
+            onPress={() => setLangModal(true)}
             style={({ pressed }) => ({
-              paddingVertical: 14,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: '#DC2626',
+              flexDirection: 'row',
               alignItems: 'center',
+              justifyContent: 'space-between',
               opacity: pressed ? 0.9 : 1,
             })}
             accessibilityRole="button"
-            accessibilityLabel={t('profile:deleteAccountA11y')}
+            accessibilityLabel={t('profile:selectLanguageTitle')}
           >
-            <Text style={{ fontWeight: '700', color: '#DC2626', fontSize: 16 }}>
-              {t('profile:deleteAccount')}
+            <Text style={{ fontSize: FONT.lg, fontWeight: FONT.bold, color: COLORS.textPrimary }}>
+              {activeLangLabel}
             </Text>
+            <Ionicons name="chevron-down" size={FONT.xl} color={COLORS.textTertiary} />
           </Pressable>
+        </Card>
+
+        <View
+          style={{
+            gap: SPACING.lg,
+            paddingTop: SPACING.sm,
+            paddingBottom: SPACING.lg,
+            overflow: 'visible',
+          }}
+        >
+          <View style={{ position: 'relative', zIndex: 1 }}>
+            <PrimaryButton
+              label={t('profile:saveChanges')}
+              onPress={onSave}
+              size="lg"
+              variant="filled"
+              fullWidth
+              floating
+              loading={saveProfile.isPending}
+              disabled={saveProfile.isPending}
+            />
+          </View>
+
+          <View style={{ position: 'relative', zIndex: 2 }}>
+            <Pressable
+              {...{ cssInterop: false }}
+              onPress={() => void signOut()}
+              style={({ pressed }) => ({
+                height: 52,
+                borderRadius: RADIUS.circle,
+                backgroundColor: COLORS.cardBg,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: SPACING.sm,
+                opacity: pressed ? 0.92 : 1,
+                alignSelf: 'stretch',
+                ...SHADOW.pill,
+              })}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile:signOutA11y')}
+            >
+              <Ionicons name="log-out-outline" size={FONT.xl} color={COLORS.textPrimary} />
+              <Text style={{ fontSize: FONT.lg, fontWeight: FONT.bold, color: COLORS.textPrimary }}>
+                {t('profile:signOut')}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={{ position: 'relative', zIndex: 3 }}>
+            <Pressable
+              {...{ cssInterop: false }}
+              onPress={confirmDelete}
+              style={({ pressed }) => ({
+                height: 52,
+                borderRadius: RADIUS.circle,
+                borderWidth: 1,
+                borderColor: COLORS.dangerBorder,
+                backgroundColor: COLORS.cardBg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: SPACING.sm,
+                opacity: pressed ? 0.92 : 1,
+                alignSelf: 'stretch',
+                ...SHADOW.pill,
+              })}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile:deleteAccountA11y')}
+            >
+              <Ionicons name="trash-outline" size={FONT.xl} color={COLORS.danger} />
+              <Text style={{ fontSize: FONT.lg, fontWeight: FONT.bold, color: COLORS.danger }}>
+                {t('profile:deleteAccount')}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
+
+      <Modal visible={langModal} animationType="slide" transparent={false} onRequestClose={() => setLangModal(false)}>
+        <View style={{ flex: 1, paddingTop: insets.top + SPACING.lg, backgroundColor: COLORS.pageBg }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: SPACING.xl,
+              marginBottom: SPACING.lg,
+            }}
+          >
+            <Text style={{ fontSize: FONT.h2, fontWeight: FONT.bold, color: COLORS.textPrimary }}>
+              {t('profile:selectLanguageTitle')}
+            </Text>
+            <Pressable onPress={() => setLangModal(false)} hitSlop={SPACING.md}>
+              <Text style={{ fontSize: FONT.lg, fontWeight: FONT.semibold, color: COLORS.primary }}>
+                {t('trips:close')}
+              </Text>
+            </Pressable>
+          </View>
+          <FlatList
+            data={[...SUPPORTED_LANGUAGES]}
+            keyExtractor={(item) => item.code}
+            contentContainerStyle={{ paddingHorizontal: SPACING.xl }}
+            renderItem={({ item }) => {
+              const sel = item.code === activeLangCode;
+              return (
+                <Pressable
+                  onPress={() => {
+                    void setAppLanguage(item.code as AppLanguageCode);
+                    setLangModal(false);
+                  }}
+                  style={{
+                    paddingVertical: SPACING.lg,
+                    borderBottomWidth: 1,
+                    borderBottomColor: COLORS.border,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: FONT.xxl, marginRight: SPACING.md }}>{item.flag}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: FONT.lg, fontWeight: FONT.semibold, color: COLORS.textPrimary }}>
+                      {item.nativeName}
+                    </Text>
+                    <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary }}>{item.name}</Text>
+                  </View>
+                  {sel ? <Ionicons name="checkmark-circle" size={FONT.xl} color={COLORS.primary} /> : null}
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
