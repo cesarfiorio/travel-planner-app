@@ -1,4 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
@@ -21,9 +22,11 @@ import { defaultCurrencyForLocale } from '../../constants/currencies';
 import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../../lib/hooks/useSubscription';
+import { tripMemoryQueryKey } from '../../lib/hooks/useTripMemory';
 import { useCreateTrip, useMyTrips } from '../../lib/hooks/useTrips';
 import { useAutoMarkCountry } from '../../lib/hooks/useVisitedCountries';
 import { tripRowToSnapshot, useAppStore } from '../../lib/store/appStore';
+import { hasSupabaseEnv, supabase } from '../../lib/supabase';
 import { isFullyPastTripDates, primaryTripEntryPath } from '../../lib/trips/tripUi';
 
 function toYmd(d: Date): string {
@@ -45,6 +48,7 @@ export default function NewTripScreen() {
   const userId = user?.id ?? '';
   const { data: trips = [] } = useMyTrips();
   const { isExplorer } = useSubscription();
+  const queryClient = useQueryClient();
   const createTrip = useCreateTrip();
   const autoMark = useAutoMarkCountry();
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
@@ -100,7 +104,8 @@ export default function NewTripScreen() {
       return;
     }
 
-    const isPastTrip = isFullyPastTripDates(start, end);
+    const pastTrip = isFullyPastTripDates(start, end);
+    const wasPastTrip = pastTrip;
 
     void createTrip.mutate(
       {
@@ -109,16 +114,35 @@ export default function NewTripScreen() {
         start_date: toYmd(start),
         end_date: toYmd(end),
         default_currency: defaultCurrency,
-        status: isPastTrip ? 'completed' : 'planning',
+        status: pastTrip ? 'completed' : 'planning',
       },
       {
-        onSuccess: (row) => {
+        onSuccess: async (row) => {
           autoMark(destination.trim() || null, row.id, toYmd(stripTime(startDate)));
-          if (isPastTrip) {
-            setActiveTrip(tripRowToSnapshot(row));
+          if (wasPastTrip && supabase && hasSupabaseEnv && userId) {
+            const now = new Date().toISOString();
+            const { error } = await supabase.from('trip_memories').insert({
+              trip_id: row.id,
+              created_by: userId,
+              mood: 'good',
+              places_visited: 0,
+              total_spent_cents: 0,
+              travelers_count: 1,
+              destination_label: row.destination_label,
+              start_date: row.start_date,
+              end_date: row.end_date,
+              updated_at: now,
+            });
+            if (error && (error as { code?: string }).code !== '23505') {
+              Alert.alert(t('common:somethingWentWrong'), formatErrorMessage(error, t('trips:errorCreateFailed')));
+            } else {
+              void queryClient.invalidateQueries({ queryKey: tripMemoryQueryKey(row.id) });
+            }
+          }
+          setActiveTrip(tripRowToSnapshot(row));
+          if (wasPastTrip) {
             router.replace(primaryTripEntryPath(row));
           } else {
-            setActiveTrip(tripRowToSnapshot(row));
             router.replace('/(tabs)');
           }
         },

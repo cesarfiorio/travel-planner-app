@@ -40,21 +40,30 @@ export function useUpdateTripMemory() {
     mutationFn: async (payload: {
       memoryId: string;
       tripId: string;
-      places_visited: number;
-      itinerary_snapshot: Json | null;
+      places_visited?: number;
+      itinerary_snapshot?: Json | null;
+      cover_photo_url?: string | null;
+      cover_place_id?: string | null;
     }) => {
       if (!supabase || !userId) {
         throw new Error('Not signed in');
       }
-      const { error } = await supabase
-        .from('trip_memories')
-        .update({
-          places_visited: payload.places_visited,
-          itinerary_snapshot: payload.itinerary_snapshot,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', payload.memoryId)
-        .eq('created_by', userId);
+      const patch: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (payload.places_visited !== undefined) {
+        patch.places_visited = payload.places_visited;
+      }
+      if (payload.itinerary_snapshot !== undefined) {
+        patch.itinerary_snapshot = payload.itinerary_snapshot;
+      }
+      if (payload.cover_photo_url !== undefined) {
+        patch.cover_photo_url = payload.cover_photo_url;
+      }
+      if (payload.cover_place_id !== undefined) {
+        patch.cover_place_id = payload.cover_place_id;
+      }
+      const { error } = await supabase.from('trip_memories').update(patch).eq('id', payload.memoryId).eq('created_by', userId);
       if (error) {
         throw error;
       }

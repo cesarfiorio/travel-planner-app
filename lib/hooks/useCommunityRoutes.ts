@@ -80,7 +80,8 @@ export function useCommunityFeed(
       if (error) {
         throw error;
       }
-      const list = (rows ?? []) as RankedRouteRow[];
+      // Omit legacy ghost posts (trip deleted under ON DELETE SET NULL). DB migration 021 + ranked_routes view also filter this.
+      const list = (rows ?? []).filter((r) => r.trip_id != null && String(r.trip_id).trim() !== '') as RankedRouteRow[];
       if (list.length === 0) {
         return [];
       }

@@ -1,13 +1,14 @@
+import * as Localization from 'expo-localization';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
+import { COLORS, FONT, SHADOW } from '../constants/theme';
 import type { ExpenseWithSplits } from '../lib/hooks/useExpenses';
 import type { MemberProfileBrief } from '../lib/hooks/useTrips';
 import { formatCurrency } from '../lib/utils/formatCurrency';
 
-import * as Localization from 'expo-localization';
-
-const CARD_RADIUS = 16;
+/** Recent Expense “capsules”: white tile, ~18px corners, soft shadow (matches design ref). */
+const CARD_RADIUS = 18;
 
 function displayName(p: MemberProfileBrief | undefined, fallback: string): string {
   return p?.display_name?.trim() || p?.full_name?.trim() || fallback;
@@ -48,33 +49,43 @@ export function ExpensePreviewCard({ expense, paidByProfile, profileById, onPres
 
   return (
     <Pressable
+      // NativeWind can replace Pressable and drop layout styles — keep capsule visuals.
+      {...{ cssInterop: false }}
       onPress={onPress}
       style={({ pressed }) => ({
         marginHorizontal: 20,
         marginBottom: 14,
         padding: 16,
         borderRadius: CARD_RADIUS,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.cardBg,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: COLORS.border,
         opacity: pressed ? 0.96 : 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
+        ...SHADOW.md,
       })}
       accessibilityRole="button"
       accessibilityLabel={expense.title}
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', flex: 1, marginRight: 12 }} numberOfLines={2}>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 4,
+        }}
+      >
+        <Text
+          style={{ fontSize: FONT.md, fontWeight: FONT.bold, color: COLORS.textPrimary, flex: 1, marginRight: 12 }}
+          numberOfLines={2}
+        >
           {expense.title}
         </Text>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>{amountLabel}</Text>
+        <Text style={{ fontSize: FONT.md, fontWeight: FONT.bold, color: COLORS.textPrimary }}>{amountLabel}</Text>
       </View>
-      <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 6 }}>{formatExpenseShortDate(expense.expense_date, locale)}</Text>
-      <Text style={{ fontSize: 13, color: '#6B7280', lineHeight: 18 }} numberOfLines={3}>
+      <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary, marginBottom: 6 }}>
+        {formatExpenseShortDate(expense.expense_date, locale)}
+      </Text>
+      <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary, lineHeight: 18 }} numberOfLines={3}>
         {splitLine}
       </Text>
     </Pressable>

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { TravelStyleId } from '../community/constants';
 import { hasSupabaseEnv, supabase } from '../supabase';
-import { buildRouteGeoJson } from '../utils/routeGeoJson';
+import { buildRouteGeoJson, type PlacePin } from '../utils/routeGeoJson';
 import { tripDurationDays } from '../trips/tripUi';
 
 import { useAuth } from './useAuth';
@@ -54,6 +54,8 @@ export type PublishCompletedTripToCommunityInput = {
   endDate: string | null;
   /** Distinct place ids in itinerary order */
   placeIds: string[];
+  /** When set (e.g. from itinerary), skips an extra round-trip to `places` for coordinates. */
+  routePins?: PlacePin[];
   tip: string;
   tags: string[];
   travelStyle: TravelStyleId;
@@ -84,11 +86,15 @@ export function usePublishCompletedTripToCommunity() {
         throw new Error('At most 3 tags');
       }
 
+      /** Cap rows scanned so duplicate cleanup stays fast even if data is messy. */
+      const DEDUP_PAGE = 24;
       const { data: rowsForTrip, error: listErr } = await supabase
         .from('community_routes')
         .select('id, published_at, updated_at')
         .eq('trip_id', input.tripId)
-        .eq('creator_id', userId);
+        .eq('creator_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(DEDUP_PAGE);
       if (listErr) {
         throw listErr;
       }
@@ -128,25 +134,30 @@ export function usePublishCompletedTripToCommunity() {
         }
       }
 
-      let placeRows: { id: string; name: string; latitude: unknown; longitude: unknown }[] = [];
-      if (input.placeIds.length > 0) {
-        const { data, error: placesError } = await supabase
-          .from('places')
-          .select('id, name, latitude, longitude')
-          .in('id', input.placeIds);
-        if (placesError) {
-          throw placesError;
+      let pins: PlacePin[];
+      if (input.routePins && input.routePins.length > 0) {
+        pins = input.routePins;
+      } else {
+        let placeRows: { id: string; name: string; latitude: unknown; longitude: unknown }[] = [];
+        if (input.placeIds.length > 0) {
+          const { data, error: placesError } = await supabase
+            .from('places')
+            .select('id, name, latitude, longitude')
+            .in('id', input.placeIds);
+          if (placesError) {
+            throw placesError;
+          }
+          placeRows = data ?? [];
         }
-        placeRows = data ?? [];
+        const idOrder = new Map(input.placeIds.map((id, i) => [id, i]));
+        placeRows.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
+        pins = placeRows.map((p) => ({
+          id: p.id,
+          name: p.name,
+          latitude: p.latitude != null ? Number(p.latitude) : null,
+          longitude: p.longitude != null ? Number(p.longitude) : null,
+        }));
       }
-      const idOrder = new Map(input.placeIds.map((id, i) => [id, i]));
-      placeRows.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
-      const pins = placeRows.map((p) => ({
-        id: p.id,
-        name: p.name,
-        latitude: p.latitude != null ? Number(p.latitude) : null,
-        longitude: p.longitude != null ? Number(p.longitude) : null,
-      }));
       const routeGeoJson = buildRouteGeoJson(pins);
 
       const dest = input.destinationLabel?.trim() || input.tripName.trim() || 'Trip';
@@ -195,14 +206,14 @@ export function usePublishCompletedTripToCommunity() {
       }
     },
     onSuccess: (_void, input) => {
-      void queryClient.invalidateQueries({
-        queryKey: communityFeedQueryKey,
-        refetchType: 'all',
-      });
       void queryClient.invalidateQueries({ queryKey: tripDetailQueryKey(input.tripId) });
       void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
       void queryClient.invalidateQueries({ queryKey: communityRouteByTripQueryKey(input.tripId) });
       void queryClient.invalidateQueries({ queryKey: tripMemoryQueryKey(input.tripId) });
+      // Defer feed invalidation so the publish mutation returns sooner and the UI unblocks faster.
+      setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: communityFeedQueryKey });
+      }, 150);
     },
   });
 }

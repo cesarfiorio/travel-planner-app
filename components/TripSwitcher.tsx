@@ -24,12 +24,23 @@ export function TripSwitcher({ variant = 'banner' }: TripSwitcherProps) {
   const [open, setOpen] = useState(false);
   const sortedTrips = useMemo(() => sortTripsForHome(tripsForHomeTripList(trips)), [trips]);
 
+  /** Include the current trip when it's past/completed (not in the home-only list) so the switcher still appears. */
+  const switcherTrips = useMemo(() => {
+    if (activeTrip?.id && !sortedTrips.some((x) => x.id === activeTrip.id)) {
+      const row = trips.find((x) => x.id === activeTrip.id);
+      if (row) {
+        return [row, ...sortedTrips];
+      }
+    }
+    return sortedTrips;
+  }, [trips, sortedTrips, activeTrip?.id]);
+
   const label =
     activeTrip?.destination_label?.trim() ||
     activeTrip?.name?.trim() ||
     t('switcherLabel');
 
-  if (isLoading || sortedTrips.length === 0) {
+  if (isLoading || switcherTrips.length === 0) {
     return null;
   }
 
@@ -86,7 +97,7 @@ export function TripSwitcher({ variant = 'banner' }: TripSwitcherProps) {
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <Text style={styles.sheetTitle}>{t('switchTripTitle')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 360 }}>
-              {sortedTrips.map((trip) => {
+              {switcherTrips.map((trip) => {
                 const selected = trip.id === activeTrip?.id;
                 const rowLabel = trip.destination_label?.trim() || trip.name;
                 return (

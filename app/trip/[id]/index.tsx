@@ -241,7 +241,7 @@ export default function TripDetailScreen() {
               a11y={t('actionMemory')}
               onPress={() => {
                 setActiveTrip(tripRowToSnapshot(trip));
-                router.push(`/trip/${trip.id}/memory`);
+                router.push(`/trip/${trip.id}/finish`);
               }}
             />
           ) : null}

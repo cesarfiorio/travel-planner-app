@@ -16,6 +16,7 @@ import {
   useToggleRouteLike,
   useToggleRouteSave,
 } from '../../../lib/hooks/useCommunityRoutes';
+import { useDestinationCoverPhoto } from '../../../lib/hooks/useDestinationCoverPhoto';
 import { captureAndShare } from '../../../lib/utils/shareCard';
 import { parseRoutePlaceNames } from '../../../lib/utils/routeGeoJson';
 
@@ -48,6 +49,12 @@ export default function CommunityRouteDetailScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation(['community', 'share']);
   const { data: route, isPending, isError } = useCommunityRoute(routeId);
+  const destForCover = route?.destination?.trim() || route?.title?.trim() || '';
+  const hasStoredCover = Boolean(route?.cover_photo_url?.trim());
+  const { data: freeCoverUrl, isFetching: freeCoverLoading } = useDestinationCoverPhoto(
+    destForCover,
+    Boolean(route) && !hasStoredCover && destForCover.length >= 2,
+  );
   const toggleLike = useToggleRouteLike();
   const toggleSave = useToggleRouteSave();
   const routeCardRef = useRef<RouteShareCardHandle>(null);
@@ -96,7 +103,7 @@ export default function CommunityRouteDetailScreen() {
         ? (t as (k: string) => string)(`community:style_${styleKey}`)
         : '';
   const tags = (route.tags ?? []).slice(0, 3);
-  const coverUri = route.cover_photo_url?.trim() || null;
+  const coverUri = route.cover_photo_url?.trim() || freeCoverUrl || null;
   const initial = route.creatorName?.trim()?.charAt(0)?.toUpperCase() || '?';
 
   const styleLabelForShare = route.travel_style ? (t as (k: string) => string)(`community:style_${route.travel_style}`) : '';
@@ -223,6 +230,10 @@ export default function CommunityRouteDetailScreen() {
           <View style={{ marginTop: 10, marginHorizontal: 14, height: COVER_H, borderRadius: 12, overflow: 'hidden', backgroundColor: '#E5E7EB' }}>
             {coverUri ? (
               <Image source={{ uri: coverUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+            ) : freeCoverLoading ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E7EB' }}>
+                <ActivityIndicator color={ORANGE} />
+              </View>
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D1D5DB' }}>
                 <Ionicons name="image-outline" size={52} color="#9CA3AF" />

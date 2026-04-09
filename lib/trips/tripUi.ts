@@ -49,10 +49,10 @@ export function tripsForHomeTripList<T extends { status: string }>(trips: T[]): 
   return trips.filter((t) => t.status !== 'completed');
 }
 
-/** First screen when opening a trip: completed → memory (log the trip); otherwise trip hub. */
+/** First screen when opening a trip: completed → trip recap (`finish`); otherwise trip hub. */
 export function primaryTripEntryPath(trip: { id: string; status: string }): string {
   if (trip.status === 'completed') {
-    return `/trip/${trip.id}/memory`;
+    return `/trip/${trip.id}/finish`;
   }
   return `/trip/${trip.id}`;
 }

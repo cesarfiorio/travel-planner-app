@@ -13,7 +13,6 @@ import { formatTripHeroDateRange } from '../lib/trips/tripDateFormat';
 const ORANGE = '#F05A1A';
 const CARD_RADIUS = 16;
 const HERO_H = 220;
-const FOOTER_PAD = 16;
 
 /** Rotate hero photos for visual variety (Unsplash). */
 const HERO_URLS = [
@@ -33,9 +32,11 @@ function heroUrlForTripId(id: string): string {
 type Props = {
   trip: TripWithDetails;
   locale: string;
+  /** When true (e.g. profile tab), CTA only sets the active trip for the tab bar—no trip hub navigation. */
+  selectActiveOnly?: boolean;
 };
 
-export function FeaturedActiveTripCard({ trip, locale }: Props) {
+export function FeaturedActiveTripCard({ trip, locale, selectActiveOnly = false }: Props) {
   const { t } = useTranslation('trips');
   const router = useRouter();
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
@@ -55,8 +56,12 @@ export function FeaturedActiveTripCard({ trip, locale }: Props) {
 
   const openDetail = () => {
     setActiveTrip(tripRowToSnapshot(trip));
-    router.push(primaryTripEntryPath(trip));
+    if (!selectActiveOnly) {
+      router.push(primaryTripEntryPath(trip));
+    }
   };
+
+  const ctaLabel = selectActiveOnly ? t('switchTripTitle') : t('viewDetails');
 
   return (
     <View
@@ -127,10 +132,10 @@ export function FeaturedActiveTripCard({ trip, locale }: Props) {
             opacity: pressed ? 0.92 : 1,
           })}
           accessibilityRole="button"
-          accessibilityLabel={t('viewDetails')}
+          accessibilityLabel={ctaLabel}
         >
           <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' }}>
-            {t('viewDetails')}
+            {ctaLabel}
           </Text>
         </Pressable>
       </View>

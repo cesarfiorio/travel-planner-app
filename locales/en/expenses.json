@@ -6,7 +6,7 @@
   "goHome": "Go to trips",
   "recentExpenses": "Recent Expenses",
   "addExpenseFabA11y": "Add expense",
-  "settleUpCta": "SETTLE UP",
+  "settleUpCta": "Settle Up",
   "settleUpNeedExpenses": "Add an expense before settling balances.",
   "allSettledBody": "Everyone is settled up for this trip.",
   "balanceOwes": "owes {{amount}}",

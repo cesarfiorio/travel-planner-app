@@ -5,11 +5,13 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { COLORS, FONT, RADIUS, SHADOW } from '../constants/theme';
 import type { CommunityRouteVm } from '../lib/hooks/useCommunityRoutes';
+import { useDestinationCoverPhoto } from '../lib/hooks/useDestinationCoverPhoto';
 
-const ORANGE = '#F05A1A';
-const CARD_RADIUS = 12;
-const COVER_H = 200;
+const CARD_RADIUS = RADIUS.xl;
+const COVER_H = 228;
+const INNER_PAD = 16;
 
 type Props = {
   route: CommunityRouteVm;
@@ -69,51 +71,60 @@ export function CommunityMvpCard({
     return label;
   };
   const initial = route.creatorName?.trim()?.charAt(0)?.toUpperCase() || '?';
-  const coverUri = route.cover_photo_url?.trim() || null;
+  const storedCover = route.cover_photo_url?.trim() || null;
+  const destForCover = dest || title;
+  const { data: freeCoverUrl, isFetching: freeCoverLoading } = useDestinationCoverPhoto(
+    destForCover,
+    !storedCover && destForCover.trim().length >= 2,
+  );
+  const coverUri = storedCover || freeCoverUrl || null;
 
   return (
     <View
       style={{
         marginHorizontal: 20,
-        marginBottom: 16,
+        marginBottom: 20,
         borderRadius: CARD_RADIUS,
-        overflow: 'hidden',
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.cardBg,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
+        borderColor: COLORS.border,
+        ...SHADOW.md,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 0 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: INNER_PAD,
+          paddingTop: INNER_PAD,
+          paddingBottom: INNER_PAD,
+        }}
+      >
         {route.creatorAvatar ? (
-          <Image source={{ uri: route.creatorAvatar }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+          <Image source={{ uri: route.creatorAvatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
         ) : (
           <View
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: '#E5E7EB',
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: COLORS.pageBg,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>{initial}</Text>
+            <Text style={{ fontSize: FONT.md, fontWeight: FONT.bold, color: COLORS.textSecondary }}>{initial}</Text>
           </View>
         )}
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={{ fontSize: FONT.base, fontWeight: FONT.bold, color: COLORS.textPrimary }} numberOfLines={1}>
             {route.creatorName}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-            <Text style={{ fontSize: 12, color: '#6B7280' }}>{durationLabel}</Text>
-            <Text style={{ fontSize: 12, color: '#6B7280' }}>•</Text>
-            <Ionicons name={travelStyleIconName(route.travel_style)} size={14} color="#6B7280" />
-            <Text style={{ fontSize: 12, color: '#6B7280' }}>{styleLabel}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+            <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary }}>{durationLabel}</Text>
+            <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary }}>•</Text>
+            <Ionicons name={travelStyleIconName(route.travel_style)} size={14} color={COLORS.textSecondary} />
+            <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary }}>{styleLabel}</Text>
           </View>
         </View>
         <Pressable
@@ -124,45 +135,57 @@ export function CommunityMvpCard({
           accessibilityLabel={t('saveA11y')}
         >
           {saveBusy ? (
-            <ActivityIndicator size="small" color={ORANGE} />
+            <ActivityIndicator size="small" color={COLORS.primary} />
           ) : (
             <Ionicons
               name={route.savedByMe ? 'bookmark' : 'bookmark-outline'}
-              size={22}
-              color={route.savedByMe ? ORANGE : '#9CA3AF'}
+              size={24}
+              color={route.savedByMe ? COLORS.primary : COLORS.textTertiary}
             />
           )}
         </Pressable>
       </View>
 
-      <View style={{ marginTop: 12, height: COVER_H, width: '100%', backgroundColor: '#E5E7EB' }}>
+      <View
+        style={{
+          height: COVER_H,
+          marginHorizontal: INNER_PAD,
+          borderRadius: RADIUS.lg,
+          overflow: 'hidden',
+          backgroundColor: COLORS.border,
+        }}
+      >
         {coverUri ? (
           <Image source={{ uri: coverUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        ) : freeCoverLoading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.pageBg }}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
         ) : (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D1D5DB' }}>
-            <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.pageBg }}>
+            <Ionicons name="image-outline" size={48} color={COLORS.textTertiary} />
           </View>
         )}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.65)']}
+          colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={{
             position: 'absolute',
             left: 0,
             right: 0,
             bottom: 0,
-            height: 120,
+            height: 112,
             justifyContent: 'flex-end',
-            paddingHorizontal: 12,
-            paddingBottom: 12,
+            paddingHorizontal: 14,
+            paddingBottom: 14,
           }}
         >
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#fff' }} numberOfLines={2}>
+          <Text style={{ fontSize: FONT.xl, fontWeight: FONT.bold, color: COLORS.textOnPrimary }} numberOfLines={2}>
             {title}
           </Text>
           {dest ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-              <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.9)" />
-              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', flex: 1 }} numberOfLines={1}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+              <Ionicons name="location" size={15} color="rgba(255,255,255,0.95)" />
+              <Text style={{ fontSize: FONT.md, color: 'rgba(255,255,255,0.92)', flex: 1 }} numberOfLines={1}>
                 {dest}
               </Text>
             </View>
@@ -171,20 +194,28 @@ export function CommunityMvpCard({
       </View>
 
       {tags.length > 0 ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingTop: 10 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            paddingHorizontal: INNER_PAD,
+            paddingTop: 14,
+          }}
+        >
           {tags.map((tag) => (
             <View
               key={tag}
               style={{
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 100,
-                backgroundColor: '#fff',
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: RADIUS.pill,
+                backgroundColor: COLORS.pageBg,
               }}
             >
-              <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500' }}>{tagLabel(tag)}</Text>
+              <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary, fontWeight: FONT.medium }}>
+                {tagLabel(tag)}
+              </Text>
             </View>
           ))}
         </View>
@@ -195,12 +226,12 @@ export function CommunityMvpCard({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingHorizontal: 12,
-          paddingTop: 10,
-          paddingBottom: 12,
+          paddingHorizontal: INNER_PAD,
+          paddingTop: 14,
+          paddingBottom: INNER_PAD,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
           <Pressable
             onPress={onToggleHeart}
             disabled={heartBusy}
@@ -209,33 +240,39 @@ export function CommunityMvpCard({
             accessibilityLabel={t('heartA11y')}
           >
             {heartBusy ? (
-              <ActivityIndicator size="small" color={route.likedByMe ? '#EF4444' : '#6B7280'} />
+              <ActivityIndicator size="small" color={route.likedByMe ? COLORS.danger : COLORS.textSecondary} />
             ) : (
               <Ionicons
                 name={route.likedByMe ? 'heart' : 'heart-outline'}
-                size={20}
-                color={route.likedByMe ? '#EF4444' : '#6B7280'}
+                size={22}
+                color={route.likedByMe ? COLORS.danger : COLORS.textSecondary}
               />
             )}
-            <Text style={{ fontSize: 14, color: '#6B7280', fontWeight: '600' }}>{route.likes_count ?? 0}</Text>
+            <Text style={{ fontSize: FONT.base, color: COLORS.textSecondary, fontWeight: FONT.semibold }}>
+              {route.likes_count ?? 0}
+            </Text>
           </Pressable>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name={route.savedByMe ? 'bookmark' : 'bookmark-outline'} size={20} color="#6B7280" />
-            <Text style={{ fontSize: 14, color: '#6B7280', fontWeight: '600' }}>{route.saves_count ?? 0}</Text>
+            <Ionicons name="bookmark-outline" size={22} color={COLORS.textSecondary} />
+            <Text style={{ fontSize: FONT.base, color: COLORS.textSecondary, fontWeight: FONT.semibold }}>
+              {route.saves_count ?? 0}
+            </Text>
           </View>
         </View>
         <Pressable
           onPress={() => router.push(`/(stack)/community/${route.id}`)}
           style={{
-            backgroundColor: ORANGE,
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 100,
+            backgroundColor: COLORS.primary,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: RADIUS.pill,
           }}
           accessibilityRole="button"
           accessibilityLabel={t('viewRoute')}
         >
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>{t('viewRoute')}</Text>
+          <Text style={{ fontSize: FONT.base, fontWeight: FONT.semibold, color: COLORS.textOnPrimary }}>
+            {t('viewRoute')}
+          </Text>
         </Pressable>
       </View>
     </View>

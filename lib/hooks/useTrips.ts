@@ -6,6 +6,7 @@ import type { Tables } from '../supabase/types';
 import { logger } from '../utils/logger';
 
 import { useAuth } from './useAuth';
+import { communityFeedQueryKey } from './useCommunityRoutes';
 import { completedTripsCountKey } from './useProfile';
 import { tripMemoryQueryKey } from './useTripMemory';
 
@@ -360,9 +361,12 @@ export function useDeleteTrip() {
       }
       return tripId;
     },
-    onSuccess: () => {
+    onSuccess: (deletedTripId) => {
       void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
       void queryClient.invalidateQueries({ queryKey: completedTripsCountKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: tripMemoryQueryKey(deletedTripId) });
+      void queryClient.invalidateQueries({ queryKey: communityFeedQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['communityRouteByTrip', deletedTripId] });
     },
   });
 }

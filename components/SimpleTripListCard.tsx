@@ -13,9 +13,11 @@ const CARD_BORDER = '#E5E7EB';
 type Props = {
   trip: TripWithDetails;
   locale: string;
+  /** When true (e.g. profile tab), tap only sets the active trip for the tab bar—no trip hub navigation. */
+  selectActiveOnly?: boolean;
 };
 
-export function SimpleTripListCard({ trip, locale }: Props) {
+export function SimpleTripListCard({ trip, locale, selectActiveOnly = false }: Props) {
   const { t } = useTranslation('trips');
   const router = useRouter();
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
@@ -25,7 +27,9 @@ export function SimpleTripListCard({ trip, locale }: Props) {
 
   const open = () => {
     setActiveTrip(tripRowToSnapshot(trip));
-    router.push(primaryTripEntryPath(trip));
+    if (!selectActiveOnly) {
+      router.push(primaryTripEntryPath(trip));
+    }
   };
 
   /** Shadow + elevation on `Pressable` is unreliable (especially Android). Outer `View` carries the card chrome. */
@@ -52,6 +56,7 @@ export function SimpleTripListCard({ trip, locale }: Props) {
         })}
         accessibilityRole="button"
         accessibilityLabel={title}
+        accessibilityHint={selectActiveOnly ? t('switchTripTitle') : undefined}
       >
         <View style={{ padding: 16 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }} numberOfLines={2}>

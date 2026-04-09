@@ -21,6 +21,8 @@ export type ItineraryPlaceVm = {
   category: string | null;
   photos: Json;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type TripPlaceRow = {
@@ -37,6 +39,8 @@ type TripPlaceRow = {
     category: string | null;
     photos: Json;
     formatted_address: string | null;
+    latitude: unknown;
+    longitude: unknown;
   } | null;
 };
 
@@ -65,6 +69,8 @@ function mapRow(r: TripPlaceRow): ItineraryPlaceVm | null {
     category: p.category,
     photos: p.photos,
     address: p.formatted_address,
+    latitude: p.latitude != null ? Number(p.latitude) : null,
+    longitude: p.longitude != null ? Number(p.longitude) : null,
   };
 }
 
@@ -103,7 +109,9 @@ async function fetchItineraryRows(tripId: string): Promise<ItineraryPlaceVm[]> {
         name,
         category,
         photos,
-        formatted_address
+        formatted_address,
+        latitude,
+        longitude
       )
     `,
     )

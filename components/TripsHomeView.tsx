@@ -80,15 +80,29 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
 
   const goAccount = () => router.push('/(stack)/account');
 
+  const activeTripFull = useMemo((): TripWithDetails | null => {
+    if (!activeTrip?.id) {
+      return null;
+    }
+    return trips.find((t) => t.id === activeTrip.id) ?? null;
+  }, [trips, activeTrip?.id]);
+
+  /** Keep Explore / Itinerary / Expenses wired to past trips: don't clear activeTrip just because completed trips are excluded from the home subset. */
   useEffect(() => {
-    if (!sortedTrips.length) {
+    if (!trips.length) {
       if (activeTrip) {
         setActiveTrip(null);
       }
       return;
     }
-    if (activeTrip && !sortedTrips.some((x) => x.id === activeTrip.id)) {
+    if (activeTrip && !trips.some((x) => x.id === activeTrip.id)) {
       setActiveTrip(null);
+      return;
+    }
+    if (activeTrip && !sortedTrips.some((x) => x.id === activeTrip.id)) {
+      return;
+    }
+    if (!sortedTrips.length) {
       return;
     }
     const featured = pickFeaturedTripForHome(sortedTrips, activeTrip?.id ?? null);
@@ -98,27 +112,45 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
     if (!activeTrip || activeTrip.id !== featured.id) {
       setActiveTrip(tripRowToSnapshot(featured));
     }
-  }, [sortedTrips, activeTrip, setActiveTrip]);
+  }, [trips, sortedTrips, activeTrip, setActiveTrip]);
 
   const { active, others } = useMemo(() => {
     if (!sortedTrips.length) {
+      if (activeTripFull) {
+        return { active: activeTripFull, others: [] as typeof sortedTrips };
+      }
       return { active: null as (typeof sortedTrips)[0] | null, others: [] as typeof sortedTrips };
     }
-    const featured = pickFeaturedTripForHome(sortedTrips, activeTrip?.id ?? null);
+    if (activeTripFull && sortedTrips.some((x) => x.id === activeTripFull.id)) {
+      const featured = pickFeaturedTripForHome(sortedTrips, activeTrip?.id ?? null);
+      const a = featured ?? sortedTrips[0];
+      const rest = sortedTrips.filter((x) => x.id !== a.id);
+      return { active: a, others: rest };
+    }
+    if (activeTripFull) {
+      return { active: activeTripFull, others: sortedTrips };
+    }
+    const featured = pickFeaturedTripForHome(sortedTrips, null);
     const a = featured ?? sortedTrips[0];
     const rest = sortedTrips.filter((x) => x.id !== a.id);
     return { active: a, others: rest };
-  }, [sortedTrips, activeTrip?.id]);
+  }, [sortedTrips, activeTrip?.id, activeTripFull]);
+
+  const profileTripSelectOnly = Boolean(showAccountLink);
 
   const renderTripRow: ListRenderItem<TripWithDetails> = useCallback(
-    ({ item }) => <SimpleTripListCard trip={item} locale={locale} />,
-    [locale],
+    ({ item }) => (
+      <SimpleTripListCard trip={item} locale={locale} selectActiveOnly={profileTripSelectOnly} />
+    ),
+    [locale, profileTripSelectOnly],
   );
 
   const listHeader = useMemo(
     () => (
       <>
-        {active ? <FeaturedActiveTripCard trip={active} locale={locale} /> : null}
+        {active ? (
+          <FeaturedActiveTripCard trip={active} locale={locale} selectActiveOnly={profileTripSelectOnly} />
+        ) : null}
         {others.length > 0 ? (
           <Text
             style={{
@@ -134,7 +166,7 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
         ) : null}
       </>
     ),
-    [active, others.length, locale, t],
+    [active, others.length, locale, t, profileTripSelectOnly],
   );
 
   if (isLoading) {

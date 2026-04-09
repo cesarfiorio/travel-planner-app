@@ -97,7 +97,7 @@ CREATE TABLE public.trip_places (
 CREATE TABLE public.community_routes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   creator_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  trip_id UUID REFERENCES public.trips (id) ON DELETE SET NULL,
+  trip_id UUID REFERENCES public.trips (id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
   route_geojson JSONB,

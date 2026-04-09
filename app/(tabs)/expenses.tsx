@@ -18,6 +18,7 @@ import { ExpensePreviewCard } from '../../components/ExpensePreviewCard';
 import { ExpensesBalancesCard } from '../../components/ExpensesBalancesCard';
 import { SettleDebtModal } from '../../components/SettleDebtModal';
 import { TripSwitcher } from '../../components/TripSwitcher';
+import { COLORS, FONT, RADIUS, SHADOW } from '../../constants/theme';
 import { colors } from '../../constants/colors';
 import { formatErrorMessage } from '../../lib/formatError';
 import { useAuth } from '../../lib/hooks/useAuth';
@@ -29,9 +30,6 @@ import { useAppStore } from '../../lib/store/appStore';
 import { groupExpensesByCurrency } from '../../lib/utils/expenseBalanceGroups';
 import { formatCurrency } from '../../lib/utils/formatCurrency';
 import type { SimplifiedDebt } from '../../lib/utils/splitCalculator';
-
-const SCREEN_BG = '#F8F9FA';
-const ORANGE = '#F05A1A';
 
 export default function ExpensesScreen() {
   const { t } = useTranslation('expenses');
@@ -131,54 +129,66 @@ export default function ExpensesScreen() {
 
   if (!activeTrip || !tripId) {
     return (
-      <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 24, paddingHorizontal: 24 }}>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 }}>{t('noTripTitle')}</Text>
-        <Text style={{ fontSize: 16, color: colors.inactive, lineHeight: 24, marginBottom: 20 }}>{t('noTripBody')}</Text>
+      <View style={{ flex: 1, backgroundColor: COLORS.pageBg, paddingTop: insets.top + 24, paddingHorizontal: 24 }}>
+        <Text style={{ fontSize: FONT.lg, fontWeight: FONT.bold, color: colors.text, marginBottom: 12 }}>{t('noTripTitle')}</Text>
+        <Text style={{ fontSize: FONT.md, color: colors.inactive, lineHeight: 24, marginBottom: 20 }}>{t('noTripBody')}</Text>
         <Pressable
           onPress={() => router.push('/(tabs)/home')}
           style={{
             alignSelf: 'flex-start',
             paddingVertical: 12,
             paddingHorizontal: 18,
-            backgroundColor: ORANGE,
-            borderRadius: 12,
+            backgroundColor: COLORS.primary,
+            borderRadius: RADIUS.lg,
           }}
           accessibilityRole="button"
         >
-          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{t('goHome')}</Text>
+          <Text style={{ color: colors.onPrimary, fontWeight: FONT.bold }}>{t('goHome')}</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 8 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 8 }}>
-        <Text style={{ flex: 1, fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5 }} numberOfLines={2}>
-          {t('screenTitle')}
-        </Text>
+    <View style={{ flex: 1, backgroundColor: COLORS.pageBg }}>
+      <View
+        style={{
+          paddingTop: insets.top + 4,
+          paddingHorizontal: 20,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            style={{ fontSize: 24, fontWeight: FONT.bold, color: COLORS.textPrimary, letterSpacing: -0.3 }}
+            numberOfLines={2}
+          >
+            {t('screenTitle')}
+          </Text>
+          {subtitle ? (
+            <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary, marginTop: 4, lineHeight: 18 }} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
         <TripSwitcher variant="icon" />
       </View>
-      {subtitle ? (
-        <Text style={{ fontSize: 15, color: '#6B7280', paddingHorizontal: 20, marginBottom: 16 }} numberOfLines={2}>
-          {subtitle}
-        </Text>
-      ) : (
-        <View style={{ marginBottom: 16 }} />
-      )}
 
       {isPending && expenses.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={ORANGE} size="large" />
+          <ActivityIndicator color={COLORS.primary} size="large" />
         </View>
       ) : isError ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <Text style={{ color: colors.inactive, textAlign: 'center', marginBottom: 16 }}>{t('errorLoad')}</Text>
           <Pressable
             onPress={() => void refetch()}
-            style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: ORANGE, borderRadius: 12 }}
+            style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg }}
           >
-            <Text style={{ color: colors.onPrimary, fontWeight: '600' }}>{t('retry')}</Text>
+            <Text style={{ color: colors.onPrimary, fontWeight: FONT.semibold }}>{t('retry')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -186,7 +196,7 @@ export default function ExpensesScreen() {
           <FlatList
             data={recentExpenses}
             keyExtractor={(item) => item.id}
-            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={ORANGE} />}
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={COLORS.primary} />}
             ListHeaderComponent={
               <>
                 {trip && uid ? (
@@ -203,35 +213,31 @@ export default function ExpensesScreen() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     paddingHorizontal: 20,
-                    marginBottom: 14,
+                    marginBottom: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>{t('recentExpenses')}</Text>
+                  <Text style={{ fontSize: FONT.lg, fontWeight: FONT.bold, color: COLORS.textPrimary }}>{t('recentExpenses')}</Text>
                   <Pressable
                     onPress={() => router.push(`/trip/${tripId}/add-expense`)}
                     style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      backgroundColor: ORANGE,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: COLORS.primary,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 4,
-                      elevation: 4,
+                      ...SHADOW.md,
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={t('addExpenseFabA11y')}
                   >
-                    <Ionicons name="add" size={28} color="#FFFFFF" />
+                    <Ionicons name="add" size={26} color={COLORS.textOnPrimary} />
                   </Pressable>
                 </View>
               </>
             }
             ListEmptyComponent={
-              <Text style={{ textAlign: 'center', color: colors.inactive, paddingVertical: 32, paddingHorizontal: 28 }}>
+              <Text style={{ textAlign: 'center', color: COLORS.textSecondary, paddingVertical: 32, paddingHorizontal: 28 }}>
                 {t('emptyList')}
               </Text>
             }
@@ -243,36 +249,33 @@ export default function ExpensesScreen() {
                 onPress={() => handleEdit(item)}
               />
             )}
-            contentContainerStyle={{ paddingBottom: 8, flexGrow: 1 }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              paddingBottom: 12,
+            }}
           />
 
           <View
             style={{
               paddingHorizontal: 20,
-              paddingTop: 12,
-              paddingBottom: Math.max(16, insets.bottom + 8),
-              backgroundColor: SCREEN_BG,
-              borderTopWidth: 1,
-              borderTopColor: '#E8EAED',
+              paddingTop: 8,
+              paddingBottom: Math.min(12, insets.bottom + 8),
+              backgroundColor: COLORS.pageBg,
             }}
           >
             <Pressable
               onPress={onSettleUp}
               style={{
-                paddingVertical: 16,
-                borderRadius: 999,
-                backgroundColor: ORANGE,
+                paddingVertical: 14,
+                borderRadius: RADIUS.pill,
+                backgroundColor: COLORS.primary,
                 alignItems: 'center',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.12,
-                shadowRadius: 6,
-                elevation: 4,
+                ...SHADOW.pill,
               }}
               accessibilityRole="button"
               accessibilityLabel={t('settleUp')}
             >
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 }}>{t('settleUpCta')}</Text>
+              <Text style={{ color: COLORS.textOnPrimary, fontSize: FONT.lg, fontWeight: FONT.bold }}>{t('settleUpCta')}</Text>
             </Pressable>
           </View>
         </>
