@@ -176,7 +176,10 @@ export default function TripDetailScreen() {
             </View>
             {trip.status === 'active' ? (
               <Pressable
-                onPress={() => router.push(`/trip/${trip.id}/finish`)}
+                onPress={() => {
+                  setActiveTrip(tripRowToSnapshot(trip));
+                  router.push(`/trip/${trip.id}/finish`);
+                }}
                 style={{
                   backgroundColor: colors.primarySolid,
                   borderRadius: 12,
@@ -199,32 +202,47 @@ export default function TripDetailScreen() {
             emoji="🔍"
             label={t('actionExplore')}
             a11y={t('actionExplore')}
-            onPress={() => router.push('/(tabs)/explore')}
+            onPress={() => {
+              setActiveTrip(tripRowToSnapshot(trip));
+              router.push('/(tabs)/explore');
+            }}
           />
           <ActionCard
             emoji="🗺"
             label={t('actionItinerary')}
             a11y={t('actionItinerary')}
-            onPress={() => router.push('/(tabs)/itinerary')}
+            onPress={() => {
+              setActiveTrip(tripRowToSnapshot(trip));
+              router.push('/(tabs)/itinerary');
+            }}
           />
           <ActionCard
             emoji="💸"
             label={t('actionExpenses')}
             a11y={t('actionExpenses')}
-            onPress={() => router.push('/(tabs)/expenses')}
+            onPress={() => {
+              setActiveTrip(tripRowToSnapshot(trip));
+              router.push('/(tabs)/expenses');
+            }}
           />
           <ActionCard
             emoji="👥"
             label={t('actionMembers')}
             a11y={t('actionMembers')}
-            onPress={() => router.push(`/trip/${trip.id}/members`)}
+            onPress={() => {
+              setActiveTrip(tripRowToSnapshot(trip));
+              router.push(`/trip/${trip.id}/members`);
+            }}
           />
           {trip.status === 'completed' ? (
             <ActionCard
               emoji="✨"
               label={tripMemory ? t('actionMemory') : t('actionMemoryEmpty')}
               a11y={t('actionMemory')}
-              onPress={() => router.push(`/trip/${trip.id}/memory`)}
+              onPress={() => {
+                setActiveTrip(tripRowToSnapshot(trip));
+                router.push(`/trip/${trip.id}/memory`);
+              }}
             />
           ) : null}
         </View>

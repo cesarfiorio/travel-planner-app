@@ -38,6 +38,25 @@ export function deriveTripUiStatus(trip: {
   return 'active';
 }
 
+/** Both start and end dates are strictly before today (local calendar). */
+export function isFullyPastTripDates(start: Date, end: Date): boolean {
+  const today = startOfDay(new Date());
+  return startOfDay(end) < today && startOfDay(start) < today;
+}
+
+/** Home / switcher: completed trips only appear under Past trips, not in Your trips. */
+export function tripsForHomeTripList<T extends { status: string }>(trips: T[]): T[] {
+  return trips.filter((t) => t.status !== 'completed');
+}
+
+/** First screen when opening a trip: completed → memory (log the trip); otherwise trip hub. */
+export function primaryTripEntryPath(trip: { id: string; status: string }): string {
+  if (trip.status === 'completed') {
+    return `/trip/${trip.id}/memory`;
+  }
+  return `/trip/${trip.id}`;
+}
+
 const HOME_STATUS_ORDER: Record<TripUiStatus, number> = {
   active: 0,
   planning: 1,
@@ -74,8 +93,8 @@ export function sortTripsForHome<T extends TripHomeSortInput>(trips: T[]): T[] {
 }
 
 /**
- * Featured trip on Explore: prefer the user's selection if it is still active or upcoming;
- * otherwise the first trip after {@link sortTripsForHome} (upcoming before completed).
+ * Featured trip on Home: if the user already picked a trip (including past/completed), keep it;
+ * otherwise default to the first trip after {@link sortTripsForHome}.
  */
 export function pickFeaturedTripForHome<T extends TripHomeSortInput>(sorted: T[], activeId: string | null): T | null {
   if (sorted.length === 0) {
@@ -84,10 +103,7 @@ export function pickFeaturedTripForHome<T extends TripHomeSortInput>(sorted: T[]
   if (activeId) {
     const sel = sorted.find((t) => t.id === activeId);
     if (sel) {
-      const st = deriveTripUiStatus(sel);
-      if (st === 'active' || st === 'planning') {
-        return sel;
-      }
+      return sel;
     }
   }
   return sorted[0];

@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { TripWithDetails } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
 import { formatTripHeroDateRange } from '../lib/trips/tripDateFormat';
+import { primaryTripEntryPath } from '../lib/trips/tripUi';
 
 const CARD_RADIUS = 12;
 const CARD_BORDER = '#E5E7EB';
@@ -24,7 +25,7 @@ export function SimpleTripListCard({ trip, locale }: Props) {
 
   const open = () => {
     setActiveTrip(tripRowToSnapshot(trip));
-    router.push(`/trip/${trip.id}`);
+    router.push(primaryTripEntryPath(trip));
   };
 
   /** Shadow + elevation on `Pressable` is unreliable (especially Android). Outer `View` carries the card chrome. */

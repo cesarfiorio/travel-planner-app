@@ -43,5 +43,8 @@
   "letsGo": "Let's go →",
   "continueToAppA11y": "Continue to the app",
   "nameRequiredTitle": "Name required",
-  "nameRequiredMessage": "Please enter how you would like to be called."
+  "nameRequiredMessage": "Please enter how you would like to be called.",
+  "pastTripsNav": "Past trips",
+  "pastTripsNavA11y": "Open past trips",
+  "pastTripsBackToProfileA11y": "Back to profile"
 }

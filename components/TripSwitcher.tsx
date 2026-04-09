@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 import { useMyTrips } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
-import { sortTripsForHome } from '../lib/trips/tripUi';
+import { sortTripsForHome, tripsForHomeTripList } from '../lib/trips/tripUi';
 
 export type TripSwitcherVariant = 'banner' | 'icon';
 
@@ -22,7 +22,7 @@ export function TripSwitcher({ variant = 'banner' }: TripSwitcherProps) {
   const activeTrip = useAppStore((s) => s.activeTrip);
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
   const [open, setOpen] = useState(false);
-  const sortedTrips = useMemo(() => sortTripsForHome(trips), [trips]);
+  const sortedTrips = useMemo(() => sortTripsForHome(tripsForHomeTripList(trips)), [trips]);
 
   const label =
     activeTrip?.destination_label?.trim() ||

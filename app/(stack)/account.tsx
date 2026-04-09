@@ -325,6 +325,33 @@ export default function AccountScreen() {
           </Pressable>
         </Card>
 
+        <Pressable
+          {...{ cssInterop: false }}
+          onPress={() => router.push('/(stack)/past-trips')}
+          style={({ pressed }) => ({
+            marginBottom: SPACING.xl,
+            height: 52,
+            paddingHorizontal: 24,
+            borderRadius: RADIUS.circle,
+            backgroundColor: COLORS.cardBg,
+            width: '100%',
+            alignSelf: 'stretch',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            opacity: pressed ? 0.92 : 1,
+            ...SHADOW.pill,
+          })}
+          accessibilityRole="button"
+          accessibilityLabel={t('profile:pastTripsNavA11y')}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 }}>
+            <Ionicons name="time-outline" size={FONT.xl} color={COLORS.primary} />
+            <Text style={{ fontSize: 16, fontWeight: FONT.bold, color: COLORS.textPrimary }}>{t('profile:pastTripsNav')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={FONT.xl} color={COLORS.textTertiary} />
+        </Pressable>
+
         <View
           style={{
             gap: SPACING.lg,

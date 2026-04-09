@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,16 +15,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CurrencyPicker } from '../../components/CurrencyPicker';
-import { colors } from '../../constants/colors';
-import { defaultCurrencyForLocale } from '../../constants/currencies';
-import { formatErrorMessage } from '../../lib/formatError';
-import { useAuth } from '../../lib/hooks/useAuth';
-import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../../lib/hooks/useSubscription';
-import { useCreateTrip, useMyTrips } from '../../lib/hooks/useTrips';
-import { useAutoMarkCountry } from '../../lib/hooks/useVisitedCountries';
-import { tripRowToSnapshot, useAppStore } from '../../lib/store/appStore';
-import { isFullyPastTripDates, primaryTripEntryPath } from '../../lib/trips/tripUi';
+
+import { CurrencyPicker } from '../../../components/CurrencyPicker';
+import { colors } from '../../../constants/colors';
+import { defaultCurrencyForLocale } from '../../../constants/currencies';
+import { formatErrorMessage } from '../../../lib/formatError';
+import { useAuth } from '../../../lib/hooks/useAuth';
+import { useTrip, useUpdateTrip } from '../../../lib/hooks/useTrips';
+import { parseLocalDate } from '../../../lib/trips/tripUi';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -37,31 +35,37 @@ function stripTime(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-export default function NewTripScreen() {
-  const { t, i18n } = useTranslation(['trips', 'common']);
+export default function EditTripScreen() {
+  const { id: rawId } = useLocalSearchParams<{ id: string | string[] }>();
+  const tripId = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t, i18n } = useTranslation(['trips', 'common']);
   const { user } = useAuth();
   const userId = user?.id ?? '';
-  const { data: trips = [] } = useMyTrips();
-  const { isExplorer } = useSubscription();
-  const createTrip = useCreateTrip();
-  const autoMark = useAutoMarkCountry();
-  const setActiveTrip = useAppStore((s) => s.setActiveTrip);
+  const { data: trip, isLoading, isError } = useTrip(tripId);
+  const updateTrip = useUpdateTrip();
 
   const [name, setName] = useState('');
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState(() => stripTime(new Date()));
-  const [endDate, setEndDate] = useState(() => {
-    const d = stripTime(new Date());
-    d.setDate(d.getDate() + 7);
-    return d;
-  });
+  const [endDate, setEndDate] = useState(() => stripTime(new Date()));
   const [showStart, setShowStart] = useState(false);
   const [showEnd, setShowEnd] = useState(false);
-  const [defaultCurrency, setDefaultCurrency] = useState<string>(() =>
-    defaultCurrencyForLocale(i18n.language),
-  );
+  const [defaultCurrency, setDefaultCurrency] = useState<string>(() => defaultCurrencyForLocale(i18n.language));
+
+  useEffect(() => {
+    if (!trip) {
+      return;
+    }
+    setName(trip.name);
+    setDestination(trip.destination_label ?? '');
+    const s = parseLocalDate(trip.start_date) ?? stripTime(new Date());
+    const e = parseLocalDate(trip.end_date) ?? stripTime(s);
+    setStartDate(stripTime(s));
+    setEndDate(stripTime(e));
+    setDefaultCurrency(trip.default_currency || defaultCurrencyForLocale(i18n.language));
+  }, [trip]);
 
   const openStartPicker = () => {
     setShowEnd(false);
@@ -81,16 +85,11 @@ export default function NewTripScreen() {
 
   const submit = () => {
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      Alert.alert(t('common:somethingWentWrong'), t('trips:errorNameRequired'));
+    if (!tripId || !trip) {
       return;
     }
-    const owned = trips.filter((tr) => tr.created_by === userId).length;
-    if (!isExplorer && owned >= FREE_OWNER_TRIP_LIMIT) {
-      Alert.alert(t('trips:tripLimitTitle'), t('trips:tripLimitMessage'), [
-        { text: t('common:cancel'), style: 'cancel' },
-        { text: t('trips:tripLimitUpgrade'), onPress: () => router.push('/(stack)/paywall') },
-      ]);
+    if (!trimmedName) {
+      Alert.alert(t('common:somethingWentWrong'), t('trips:errorNameRequired'));
       return;
     }
     const start = stripTime(startDate);
@@ -100,36 +99,57 @@ export default function NewTripScreen() {
       return;
     }
 
-    const isPastTrip = isFullyPastTripDates(start, end);
-
-    void createTrip.mutate(
+    void updateTrip.mutate(
       {
+        id: tripId,
         name: trimmedName,
         destination_label: destination.trim() || null,
         start_date: toYmd(start),
         end_date: toYmd(end),
         default_currency: defaultCurrency,
-        status: isPastTrip ? 'completed' : 'planning',
       },
       {
-        onSuccess: (row) => {
-          autoMark(destination.trim() || null, row.id, toYmd(stripTime(startDate)));
-          if (isPastTrip) {
-            setActiveTrip(tripRowToSnapshot(row));
-            router.replace(primaryTripEntryPath(row));
-          } else {
-            setActiveTrip(tripRowToSnapshot(row));
-            router.replace('/(tabs)');
-          }
+        onSuccess: () => {
+          router.back();
         },
         onError: (e) => {
-          Alert.alert(t('common:somethingWentWrong'), formatErrorMessage(e, t('trips:errorCreateFailed')));
+          Alert.alert(t('common:somethingWentWrong'), formatErrorMessage(e, t('trips:errorUpdateFailed')));
         },
       },
     );
   };
 
   const scrollBottomPad = Math.max(insets.bottom, 12) + 24;
+
+  if (isLoading && !trip) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (isError || !trip) {
+    return (
+      <View style={{ flex: 1, paddingTop: insets.top + 12, paddingHorizontal: 20, backgroundColor: colors.background }}>
+        <Pressable onPress={() => router.back()} accessibilityRole="button">
+          <Text style={{ fontSize: 17, fontWeight: '600', color: colors.primary }}>{t('trips:close')}</Text>
+        </Pressable>
+        <Text style={{ marginTop: 24, fontSize: 17, color: colors.inactive }}>{t('trips:notFound')}</Text>
+      </View>
+    );
+  }
+
+  if (trip.created_by !== userId) {
+    return (
+      <View style={{ flex: 1, paddingTop: insets.top + 12, paddingHorizontal: 20, backgroundColor: colors.background }}>
+        <Pressable onPress={() => router.back()} accessibilityRole="button">
+          <Text style={{ fontSize: 17, fontWeight: '600', color: colors.primary }}>{t('trips:close')}</Text>
+        </Pressable>
+        <Text style={{ marginTop: 24, fontSize: 17, color: colors.inactive }}>{t('trips:errorNotOwner')}</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -138,24 +158,19 @@ export default function NewTripScreen() {
     >
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel={t('trips:closeA11y')}
-          >
+          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('trips:closeA11y')}>
             <Text style={{ fontSize: 17, fontWeight: '600', color: colors.primary }}>{t('trips:close')}</Text>
           </Pressable>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>{t('trips:newTitle')}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>{t('trips:editTripTitle')}</Text>
           <Pressable
             onPress={submit}
-            disabled={createTrip.isPending}
+            disabled={updateTrip.isPending}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={t('common:save')}
-            style={{ opacity: createTrip.isPending ? 0.5 : 1 }}
+            style={{ opacity: updateTrip.isPending ? 0.5 : 1 }}
           >
-            {createTrip.isPending ? (
+            {updateTrip.isPending ? (
               <ActivityIndicator size="small" color={colors.primarySolid} />
             ) : (
               <Text style={{ fontSize: 17, fontWeight: '700', color: colors.primarySolid }}>{t('common:save')}</Text>
@@ -163,10 +178,7 @@ export default function NewTripScreen() {
           </Pressable>
         </View>
       </View>
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: scrollBottomPad }}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: scrollBottomPad }} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>{t('trips:fieldTripName')}</Text>
         <TextInput
           value={name}
@@ -226,8 +238,6 @@ export default function NewTripScreen() {
 
         <Text style={styles.label}>{t('trips:fieldCurrency')}</Text>
         <CurrencyPicker value={defaultCurrency} onChange={setDefaultCurrency} />
-
-        <Text style={styles.footerHint}>{t('trips:newTripPastTripsHint')}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -261,14 +271,5 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: colors.text,
     fontWeight: '500',
-  },
-  footerHint: {
-    marginTop: 28,
-    marginBottom: 8,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.inactive,
-    fontWeight: '500',
-    textAlign: 'center',
   },
 });

@@ -201,15 +201,20 @@ export function useFullImportTrip() {
 
       await supabase.from('trip_members').insert({ trip_id: trip.id, user_id: uid, role: 'owner' });
 
-      if (input.placeIds.length > 0) {
-        const rows = input.placeIds.map((pid, i) => ({
+      const uniquePlaceIds = [...new Set(input.placeIds)];
+      if (uniquePlaceIds.length > 0) {
+        const rows = uniquePlaceIds.map((pid, i) => ({
           trip_id: trip.id,
           place_id: pid,
           day_number: 1,
+          order_index: i,
           sort_order: i,
           status: 'visited' as const,
         }));
-        await supabase.from('trip_places').insert(rows);
+        const { error: tpErr } = await supabase.from('trip_places').insert(rows);
+        if (tpErr) {
+          throw tpErr;
+        }
       }
 
       if (input.shareToCommunity && input.tip.trim()) {
@@ -233,7 +238,7 @@ export function useFullImportTrip() {
         trip_id: trip.id,
         created_by: uid,
         mood: input.mood,
-        places_visited: input.placeIds.length || 1,
+        places_visited: uniquePlaceIds.length || 1,
         total_spent_cents: input.totalSpentCents,
         travelers_count: input.travelWith === 'solo' ? 1 : 2,
         destination_label: input.destination.trim(),

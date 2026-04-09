@@ -5,7 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -24,19 +25,27 @@ import { LockedBanner } from '../../../components/LockedBanner';
 import { PlanGate } from '../../../components/PlanGate';
 import { TripShareCard, type TripShareCardHandle, ShareFormatSheet } from '../../../components/share';
 import { colors } from '../../../constants/colors';
+import { COMMUNITY_TAG_IDS, TRAVEL_STYLE_IDS, type TravelStyleId } from '../../../lib/community/constants';
 import { getPlacePhotoSource } from '../../../lib/api/placePhoto';
 import { formatErrorMessage } from '../../../lib/formatError';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { usePlaceById } from '../../../lib/hooks/usePlaceDetail';
+import { useItinerary } from '../../../lib/hooks/useItinerary';
+import { useCommunityRouteForTrip, usePublishCompletedTripToCommunity } from '../../../lib/hooks/usePublishTripCommunity';
 import {
+  tripMemoryQueryKey,
   useAddJournalEntry,
   useDeleteJournalEntry,
   useTripJournal,
   useTripMemoryByTripId,
   useUpdateJournalEntry,
+  useUpdateTripMemory,
 } from '../../../lib/hooks/useTripMemory';
 import { useTripExpenses } from '../../../lib/hooks/useExpenses';
 import { useTrip } from '../../../lib/hooks/useTrips';
+import { hasSupabaseEnv, supabase } from '../../../lib/supabase';
+import { tripRowToSnapshot, useAppStore } from '../../../lib/store/appStore';
+import { itinerarySnapshotFromPlaces } from '../../../lib/trips/memoryItinerary';
 import { firstPhotoReference } from '../../../lib/places/firstPhotoRef';
 import { formatCurrency } from '../../../lib/utils/formatCurrency';
 import { captureAndShare, type ShareFormat } from '../../../lib/utils/shareCard';
@@ -67,12 +76,207 @@ export default function TripMemoryScreen() {
   const { t: tm } = useTranslation('memory');
   const { t: tt } = useTranslation('trips');
   const { t: ts } = useTranslation('share');
+  const { t: tc } = useTranslation('community');
   const { user, session } = useAuth();
   const userId = user?.id ?? '';
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
+  const queryClient = useQueryClient();
+  const setActiveTrip = useAppStore((s) => s.setActiveTrip);
   const { data: trip, isLoading: tripLoading } = useTrip(tripId);
+  const communityFormSeededRef = useRef<string>('');
+  const memoryEnsureAttempted = useRef(false);
+  const [memoryEnsureBusy, setMemoryEnsureBusy] = useState(false);
+
+  useEffect(() => {
+    memoryEnsureAttempted.current = false;
+  }, [tripId]);
+
+  useEffect(() => {
+    if (trip) {
+      setActiveTrip(tripRowToSnapshot(trip));
+    }
+  }, [trip, setActiveTrip]);
   const { data: expenses = [] } = useTripExpenses(tripId);
   const { data: memory, isLoading: memLoading } = useTripMemoryByTripId(tripId);
+  const { places: itineraryPlaces, isLoading: itineraryLoading } = useItinerary(tripId);
+  const updateTripMemoryPlaces = useUpdateTripMemory();
+  const { data: communityRoute } = useCommunityRouteForTrip(tripId);
+  const publishCommunityMut = usePublishCompletedTripToCommunity();
+
+  const [publishTip, setPublishTip] = useState('');
+  const [publishTags, setPublishTags] = useState<string[]>([]);
+  const [publishTravelStyle, setPublishTravelStyle] = useState<TravelStyleId | null>('group');
+
+  useEffect(() => {
+    communityFormSeededRef.current = '';
+  }, [tripId]);
+
+  useEffect(() => {
+    if (!communityRoute?.id || !tripId) {
+      return;
+    }
+    const mark = `${tripId}:${communityRoute.id}`;
+    if (communityFormSeededRef.current === mark) {
+      return;
+    }
+    communityFormSeededRef.current = mark;
+    setPublishTip(communityRoute.tip?.trim() ?? '');
+    const rawTags = communityRoute.tags ?? [];
+    const allowedTags = COMMUNITY_TAG_IDS as readonly string[];
+    const nextTags = rawTags.filter((x): x is string => typeof x === 'string' && allowedTags.includes(x)).slice(0, 3);
+    setPublishTags(nextTags);
+    const st = communityRoute.travel_style;
+    if (st && (TRAVEL_STYLE_IDS as readonly string[]).includes(st)) {
+      setPublishTravelStyle(st as TravelStyleId);
+    }
+  }, [tripId, communityRoute]);
+
+  useEffect(() => {
+    if (!memory?.id || !tripId || itineraryLoading) {
+      return;
+    }
+    if (itineraryPlaces.length === 0) {
+      return;
+    }
+    const snapshot = itinerarySnapshotFromPlaces(itineraryPlaces);
+    const sameCount = memory.places_visited === itineraryPlaces.length;
+    const sameSnap = JSON.stringify(memory.itinerary_snapshot ?? null) === JSON.stringify(snapshot);
+    if (sameCount && sameSnap) {
+      return;
+    }
+    updateTripMemoryPlaces.mutate({
+      memoryId: memory.id,
+      tripId,
+      places_visited: itineraryPlaces.length,
+      itinerary_snapshot: snapshot,
+    });
+  }, [
+    memory?.id,
+    memory?.places_visited,
+    memory?.itinerary_snapshot,
+    itineraryPlaces,
+    itineraryLoading,
+    tripId,
+    updateTripMemoryPlaces,
+  ]);
+
+  const isOwner = useMemo(
+    () => Boolean(trip?.trip_members.some((m) => m.user_id === userId && m.role === 'owner')),
+    [trip?.trip_members, userId],
+  );
+
+  const placesDisplayCount = useMemo(() => {
+    if (itineraryPlaces.length > 0) {
+      return itineraryPlaces.length;
+    }
+    return memory?.places_visited ?? 0;
+  }, [itineraryPlaces, memory?.places_visited]);
+
+  const togglePublishTag = useCallback((id: string) => {
+    setPublishTags((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((x) => x !== id);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, id];
+    });
+  }, []);
+
+  const onPublishToCommunity = useCallback(() => {
+    if (!trip || !memory || !tripId) {
+      return;
+    }
+    const placeIds = [...new Set(itineraryPlaces.map((p) => p.placeId))];
+    if (placeIds.length === 0) {
+      Alert.alert(tm('errorTitle'), tm('communityPlacesRequired'));
+      return;
+    }
+    if (!publishTip.trim()) {
+      Alert.alert(tm('errorTitle'), tm('communityTipRequired'));
+      return;
+    }
+    if (!publishTravelStyle) {
+      Alert.alert(tm('errorTitle'), tm('communityStyleRequired'));
+      return;
+    }
+    const isCommunityUpdate = Boolean(communityRoute?.id);
+    publishCommunityMut.mutate(
+      {
+        tripId: trip.id,
+        tripName: trip.name,
+        destinationLabel: trip.destination_label,
+        startDate: trip.start_date,
+        endDate: trip.end_date,
+        placeIds,
+        tip: publishTip,
+        tags: publishTags,
+        travelStyle: publishTravelStyle,
+        coverPhotoUrl: memory.cover_photo_url,
+      },
+      {
+        onSuccess: () => {
+          if (isCommunityUpdate) {
+            router.back();
+            return;
+          }
+          Alert.alert(tm('communityPublishedTitle'), tm('communityPublishedBody'));
+        },
+        onError: (e) => {
+          Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('communityPublishError')));
+        },
+      },
+    );
+  }, [
+    trip,
+    memory,
+    tripId,
+    publishTip,
+    publishTravelStyle,
+    itineraryPlaces,
+    publishTags,
+    publishCommunityMut,
+    communityRoute?.id,
+    tm,
+  ]);
+
+  useEffect(() => {
+    if (!tripId || !trip || memLoading || memory) {
+      return;
+    }
+    if (memoryEnsureAttempted.current || !supabase || !hasSupabaseEnv || !userId) {
+      return;
+    }
+    memoryEnsureAttempted.current = true;
+    setMemoryEnsureBusy(true);
+    const now = new Date().toISOString();
+    void (async () => {
+      try {
+        const { error } = await supabase.from('trip_memories').insert({
+          trip_id: tripId,
+          created_by: userId,
+          mood: 'good',
+          places_visited: 0,
+          total_spent_cents: 0,
+          travelers_count: 1,
+          destination_label: trip.destination_label,
+          start_date: trip.start_date,
+          end_date: trip.end_date,
+          updated_at: now,
+        });
+        if (error && (error as { code?: string }).code !== '23505') {
+          throw error;
+        }
+        await queryClient.invalidateQueries({ queryKey: tripMemoryQueryKey(tripId) });
+      } catch {
+        memoryEnsureAttempted.current = false;
+      } finally {
+        setMemoryEnsureBusy(false);
+      }
+    })();
+  }, [tripId, trip, memLoading, memory, userId, queryClient]);
+
   const { data: journal = [] } = useTripJournal(memory?.id);
   const { data: coverPlace } = usePlaceById(memory?.cover_place_id ?? undefined);
 
@@ -172,7 +376,7 @@ export default function TripMemoryScreen() {
     Alert.alert(tm('linkCopiedTitle'), tm('linkCopiedBody'));
   };
 
-  if (tripLoading || memLoading) {
+  if (tripLoading || memLoading || memoryEnsureBusy) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator color={colors.primarySolid} size="large" />
@@ -193,6 +397,7 @@ export default function TripMemoryScreen() {
 
   const tripCurrency = expenses[0]?.currency ?? 'EUR';
   const spentLabel = formatCurrency(memory.total_spent_cents, tripCurrency, locale);
+  const showCommunitySection = isOwner && trip.status === 'completed';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 8 }}>
@@ -203,9 +408,23 @@ export default function TripMemoryScreen() {
         <Text style={{ flex: 1, marginLeft: 12, fontSize: 20, fontWeight: '700', color: colors.text }} numberOfLines={1}>
           {tm('screenTitle')}
         </Text>
+        {tripId ? (
+          <Pressable
+            onPress={() => router.push(`/trip/${tripId}`)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={tt('memoryTripHubA11y')}
+          >
+            <Ionicons name="grid-outline" size={24} color={colors.text} />
+          </Pressable>
+        ) : null}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {coverSrc ? (
           <Image source={coverSrc} style={{ width: '100%', height: 200 }} contentFit="cover" />
         ) : (
@@ -223,7 +442,7 @@ export default function TripMemoryScreen() {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
             <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#F3F4F6', minWidth: '45%', flex: 1 }}>
               <Text style={{ fontSize: 12, color: colors.inactive }}>{tm('statPlaces')}</Text>
-              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{memory.places_visited}</Text>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{placesDisplayCount}</Text>
             </View>
             <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#F3F4F6', minWidth: '45%', flex: 1 }}>
               <Text style={{ fontSize: 12, color: colors.inactive }}>{tm('statSpent')}</Text>
@@ -234,6 +453,115 @@ export default function TripMemoryScreen() {
               <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{memory.travelers_count}</Text>
             </View>
           </View>
+
+          {showCommunitySection ? (
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, marginBottom: 6 }}>{tm('communitySectionTitle')}</Text>
+              {communityRoute?.id ? (
+                <View
+                  style={{
+                    marginBottom: 12,
+                    padding: 12,
+                    borderRadius: 12,
+                    backgroundColor: '#ECFDF5',
+                    borderWidth: 1,
+                    borderColor: '#A7F3D0',
+                  }}
+                >
+                  <Text style={{ fontSize: 14, color: '#047857', lineHeight: 20 }}>{tm('communityPublishedBadgeBody')}</Text>
+                </View>
+              ) : null}
+              <Text style={{ fontSize: 14, color: colors.inactive, marginBottom: 14, lineHeight: 20 }}>
+                {communityRoute?.id ? tm('communitySectionSubtitleUpdate') : tm('communitySectionSubtitle')}
+              </Text>
+
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 6 }}>{tm('communityTipLabel')}</Text>
+              <TextInput
+                value={publishTip}
+                onChangeText={(x) => setPublishTip(x.slice(0, 280))}
+                multiline
+                placeholder={tm('communityTipPlaceholder')}
+                placeholderTextColor={colors.inactive}
+                style={{
+                  minHeight: 100,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontSize: 16,
+                  color: colors.text,
+                  textAlignVertical: 'top',
+                  marginBottom: 8,
+                }}
+              />
+              <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 14 }}>{publishTip.length}/280</Text>
+
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{tm('communityTagsLabel')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {COMMUNITY_TAG_IDS.map((id) => {
+                  const on = publishTags.includes(id);
+                  return (
+                    <Pressable
+                      key={id}
+                      onPress={() => togglePublishTag(id)}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 20,
+                        backgroundColor: on ? '#E0E7FF' : '#F3F4F6',
+                        borderWidth: 1,
+                        borderColor: on ? '#6366F1' : colors.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: on ? '#3730A3' : colors.text }}>
+                        {(tc as (k: string) => string)(`tag_${id}`)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{tm('communityTravelStyleLabel')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {TRAVEL_STYLE_IDS.map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => setPublishTravelStyle(s)}
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 20,
+                      backgroundColor: publishTravelStyle === s ? colors.primarySolid : '#F3F4F6',
+                    }}
+                  >
+                    <Text style={{ fontWeight: '700', color: publishTravelStyle === s ? colors.onPrimary : colors.text }}>
+                      {(tc as (k: string) => string)(`style_${s}`)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Pressable
+                onPress={onPublishToCommunity}
+                disabled={publishCommunityMut.isPending}
+                style={{
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  backgroundColor: colors.primarySolid,
+                  alignItems: 'center',
+                  opacity: publishCommunityMut.isPending ? 0.7 : 1,
+                }}
+              >
+                {publishCommunityMut.isPending ? (
+                  <ActivityIndicator color={colors.onPrimary} />
+                ) : (
+                  <Text style={{ color: colors.onPrimary, fontWeight: '800', fontSize: 16 }}>
+                    {communityRoute?.id ? tm('communityUpdate') : tm('communityPublish')}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
 
           <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 6 }}>{tm('publicLink')}</Text>
           <Pressable onPress={copyLink} style={{ marginBottom: 20 }}>
@@ -258,7 +586,7 @@ export default function TripMemoryScreen() {
                     <Text style={{ color: '#cbd5e1', fontSize: 16, marginBottom: 16 }}>{memory.destination_label}</Text>
                   ) : null}
                   <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 4 }}>
-                    {tm('cardPlaces', { count: memory.places_visited })}
+                    {tm('cardPlaces', { count: placesDisplayCount })}
                   </Text>
                   <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 4 }}>
                     {tm('cardSpent', { amount: spentLabel })}
@@ -399,7 +727,7 @@ export default function TripMemoryScreen() {
           }
           travelers={memory?.travelers_count ?? 1}
           spentLabel={spentLabel}
-          placesVisited={memory?.places_visited ?? 0}
+          placesVisited={placesDisplayCount}
           mood={memoryMoodText(memory?.mood ?? 'good', tm)}
           moodEmoji={memory?.mood === 'amazing' ? '😍' : memory?.mood === 'great' ? '🤩' : memory?.mood === 'good' ? '😊' : '🤔'}
           labels={{

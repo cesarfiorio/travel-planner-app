@@ -7,7 +7,7 @@ import { Pressable, Text, View } from 'react-native';
 import { formatItineraryDestinationSubtitle } from '../lib/itinerary/itinerarySubtitle';
 import type { TripWithDetails } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
-import { deriveTripUiStatus } from '../lib/trips/tripUi';
+import { deriveTripUiStatus, primaryTripEntryPath } from '../lib/trips/tripUi';
 import { formatTripHeroDateRange } from '../lib/trips/tripDateFormat';
 
 const ORANGE = '#F05A1A';
@@ -55,7 +55,7 @@ export function FeaturedActiveTripCard({ trip, locale }: Props) {
 
   const openDetail = () => {
     setActiveTrip(tripRowToSnapshot(trip));
-    router.push(`/trip/${trip.id}`);
+    router.push(primaryTripEntryPath(trip));
   };
 
   return (

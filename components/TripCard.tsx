@@ -24,6 +24,7 @@ import {
   deriveTripUiStatus,
   diffDays,
   parseLocalDate,
+  primaryTripEntryPath,
   startOfDay,
   tripDurationDays,
 } from '../lib/trips/tripUi';
@@ -147,7 +148,7 @@ export function TripCard({ trip, variant, currentUserId }: Props) {
 
   const openDetail = () => {
     setActiveTrip(tripRowToSnapshot(trip));
-    router.push(`/trip/${trip.id}`);
+    router.push(primaryTripEntryPath(trip));
   };
 
   const runArchive = () => {

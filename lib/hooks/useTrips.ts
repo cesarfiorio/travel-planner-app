@@ -7,6 +7,7 @@ import { logger } from '../utils/logger';
 
 import { useAuth } from './useAuth';
 import { completedTripsCountKey } from './useProfile';
+import { tripMemoryQueryKey } from './useTripMemory';
 
 export type TripMemberBrief = { user_id: string; role: string; joined_at: string };
 
@@ -232,6 +233,8 @@ export type CreateTripInput = {
   start_date: string | null;
   end_date: string | null;
   default_currency?: string;
+  /** Defaults to `planning`; use `completed` for trips that are fully in the past. */
+  status?: string;
 };
 
 export function useCreateTrip() {
@@ -254,7 +257,7 @@ export function useCreateTrip() {
           end_date: input.end_date,
           default_currency: input.default_currency || 'USD',
           created_by: userId,
-          status: 'planning',
+          status: input.status ?? 'planning',
           updated_at: now,
         })
         .select('*')
@@ -272,11 +275,32 @@ export function useCreateTrip() {
       if (memberError) {
         throw memberError;
       }
+
+      const effectiveStatus = input.status ?? 'planning';
+      if (effectiveStatus === 'completed') {
+        const { error: memErr } = await supabase.from('trip_memories').insert({
+          trip_id: trip.id,
+          created_by: userId,
+          mood: 'good',
+          places_visited: 0,
+          total_spent_cents: 0,
+          travelers_count: 1,
+          destination_label: input.destination_label?.trim() || null,
+          start_date: input.start_date,
+          end_date: input.end_date,
+          updated_at: now,
+        });
+        if (memErr) {
+          throw memErr;
+        }
+      }
+
       return trip;
     },
-    onSuccess: () => {
+    onSuccess: (trip) => {
       void queryClient.invalidateQueries({ queryKey: myTripsQueryKey(userId) });
       void queryClient.invalidateQueries({ queryKey: completedTripsCountKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: tripMemoryQueryKey(trip.id) });
     },
   });
 }
@@ -293,6 +317,7 @@ export function useUpdateTrip() {
       destination_label?: string | null;
       start_date?: string | null;
       end_date?: string | null;
+      default_currency?: string;
       status?: string;
     }) => {
       if (!supabase || !userId) {

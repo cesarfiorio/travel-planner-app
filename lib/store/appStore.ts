@@ -12,6 +12,9 @@ export type ActiveTripSnapshot = Pick<
 type AppStoreState = {
   activeTrip: ActiveTripSnapshot | null;
   setActiveTrip: (trip: ActiveTripSnapshot | null) => void;
+  /** Day (1-based) new explore / place-detail adds go onto; synced from itinerary tab. */
+  itineraryAddDayNumber: number;
+  setItineraryAddDayNumber: (day: number) => void;
 };
 
 export function tripRowToSnapshot(row: Tables<'trips'>): ActiveTripSnapshot {
@@ -28,9 +31,28 @@ export function tripRowToSnapshot(row: Tables<'trips'>): ActiveTripSnapshot {
 
 export const useAppStore = create<AppStoreState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       activeTrip: null,
-      setActiveTrip: (trip) => set({ activeTrip: trip }),
+      itineraryAddDayNumber: 1,
+      setActiveTrip: (trip) =>
+        set((state) => {
+          const prevId = state.activeTrip?.id ?? null;
+          const nextId = trip?.id ?? null;
+          return {
+            activeTrip: trip,
+            itineraryAddDayNumber: prevId === nextId ? state.itineraryAddDayNumber : 1,
+          };
+        }),
+      setItineraryAddDayNumber: (day) => {
+        const n = Math.floor(Number(day));
+        if (!Number.isFinite(n) || n < 1) {
+          return;
+        }
+        if (get().itineraryAddDayNumber === n) {
+          return;
+        }
+        set({ itineraryAddDayNumber: n });
+      },
     }),
     {
       name: '@routeflow/app-store',

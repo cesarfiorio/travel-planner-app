@@ -168,5 +168,16 @@
   "importErrorTitle": "[FR] Couldn't save",
   "importDestRequired": "[FR] Enter a destination.",
   "importRateLimit": "[FR] You can log up to 10 past trips per day.",
-  "importErrorGeneric": "[FR] Could not import the trip."
+  "importErrorGeneric": "[FR] Could not import the trip.",
+  "newTripPastTripsHint": "Relive your unforgettable moments: add the trips you've already taken.",
+  "pastTripsTitle": "[FR] Past trips",
+  "pastTripsEmpty": "[FR] No past trips yet. Add one from New trip with dates in the past, or finish an active trip.",
+  "pastTripsRowA11y": "[FR] Open trip {{name}}",
+  "pastTripsMenuA11y": "[FR] More options for {{name}}",
+  "homeOnlyPastTripsHint": "[FR] Active and upcoming trips show here. Your completed trips are in Past trips.",
+  "homeOpenPastTripsA11y": "[FR] Open past trips list",
+  "menuEditTrip": "[FR] Edit trip",
+  "menuOpenTrip": "[FR] Open trip",
+  "editTripTitle": "[FR] Edit trip",
+  "memoryTripHubA11y": "[FR] Trip hub — Explore, Itinerary, expenses, and more"
 }

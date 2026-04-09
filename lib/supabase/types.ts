@@ -443,6 +443,7 @@ export type Database = {
           destination_label: string | null
           end_date: string | null
           id: string
+          itinerary_snapshot: Json | null
           mood: string
           places_visited: number
           share_token: string
@@ -460,6 +461,7 @@ export type Database = {
           destination_label?: string | null
           end_date?: string | null
           id?: string
+          itinerary_snapshot?: Json | null
           mood: string
           places_visited?: number
           share_token?: string
@@ -477,6 +479,7 @@ export type Database = {
           destination_label?: string | null
           end_date?: string | null
           id?: string
+          itinerary_snapshot?: Json | null
           mood?: string
           places_visited?: number
           share_token?: string

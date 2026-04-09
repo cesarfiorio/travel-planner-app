@@ -33,7 +33,7 @@ export function PlaceCard({ place, tripId, accessToken, isInItinerary }: Props) 
     if (isInItinerary || addMut.isPending) {
       return;
     }
-    void addMut.mutateAsync({ tripId, placeId: place.id });
+    void addMut.mutateAsync({ tripId, placeId: place.id }).catch(() => {});
   };
 
   const openDetail = () => {

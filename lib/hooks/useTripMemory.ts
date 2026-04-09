@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { hasSupabaseEnv, supabase } from '../supabase';
-import type { Tables } from '../supabase/types';
+import type { Json, Tables } from '../supabase/types';
 
 import { useAuth } from './useAuth';
 
@@ -27,6 +27,40 @@ export function useTripMemoryByTripId(tripId: string | undefined) {
         throw error;
       }
       return data;
+    },
+  });
+}
+
+export function useUpdateTripMemory() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
+
+  return useMutation({
+    mutationFn: async (payload: {
+      memoryId: string;
+      tripId: string;
+      places_visited: number;
+      itinerary_snapshot: Json | null;
+    }) => {
+      if (!supabase || !userId) {
+        throw new Error('Not signed in');
+      }
+      const { error } = await supabase
+        .from('trip_memories')
+        .update({
+          places_visited: payload.places_visited,
+          itinerary_snapshot: payload.itinerary_snapshot,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', payload.memoryId)
+        .eq('created_by', userId);
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: (_void, v) => {
+      void queryClient.invalidateQueries({ queryKey: tripMemoryQueryKey(v.tripId) });
     },
   });
 }

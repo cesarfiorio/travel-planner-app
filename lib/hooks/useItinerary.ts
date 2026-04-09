@@ -3,6 +3,7 @@ import { useCallback, useRef } from 'react';
 
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Json } from '../supabase/types';
+import { useAppStore } from '../store/appStore';
 
 import { useAuth } from './useAuth';
 import { tripPlaceIdsQueryKey } from './usePlaces';
@@ -134,7 +135,8 @@ export function useItinerary(tripId: string | undefined) {
     queryFn: () => fetchItineraryRows(tripId!),
   });
 
-  const sections = groupSections(query.data ?? []);
+  const places = query.data ?? [];
+  const sections = groupSections(places);
 
   const updateStatus = useMutation({
     mutationFn: async (vars: { tripPlaceId: string; status: ItineraryStatus }) => {
@@ -250,6 +252,8 @@ export function useItinerary(tripId: string | undefined) {
 
   return {
     sections,
+    /** Flat itinerary rows (stable with React Query until invalidated). */
+    places,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,
@@ -268,15 +272,19 @@ export function useAddTripPlace() {
   const userId = user?.id ?? '';
 
   return useMutation({
-    mutationFn: async (vars: { tripId: string; placeId: string }) => {
+    mutationFn: async (vars: { tripId: string; placeId: string; dayNumber?: number }) => {
       if (!supabase || !userId) {
         throw new Error('Not signed in');
       }
+      const fromStore = useAppStore.getState().itineraryAddDayNumber;
+      const dayRaw = vars.dayNumber ?? fromStore ?? 1;
+      const dayNumber = Math.max(1, Math.floor(Number(dayRaw)) || 1);
+
       const { data: maxRow, error: maxErr } = await supabase
         .from('trip_places')
         .select('order_index')
         .eq('trip_id', vars.tripId)
-        .eq('day_number', 1)
+        .eq('day_number', dayNumber)
         .order('order_index', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -284,10 +292,33 @@ export function useAddTripPlace() {
         throw maxErr;
       }
       const nextOrder = (maxRow?.order_index ?? -1) + 1;
+      const { data: existing, error: exErr } = await supabase
+        .from('trip_places')
+        .select('id')
+        .eq('trip_id', vars.tripId)
+        .eq('place_id', vars.placeId)
+        .maybeSingle();
+      if (exErr) {
+        throw exErr;
+      }
+      if (existing?.id) {
+        const { error: upErr } = await supabase
+          .from('trip_places')
+          .update({
+            day_number: dayNumber,
+            order_index: nextOrder,
+            sort_order: nextOrder,
+          })
+          .eq('id', existing.id);
+        if (upErr) {
+          throw upErr;
+        }
+        return;
+      }
       const { error } = await supabase.from('trip_places').insert({
         trip_id: vars.tripId,
         place_id: vars.placeId,
-        day_number: 1,
+        day_number: dayNumber,
         order_index: nextOrder,
         sort_order: nextOrder,
         status: 'planned',

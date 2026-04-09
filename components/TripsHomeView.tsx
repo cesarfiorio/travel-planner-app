@@ -27,7 +27,7 @@ import { useProfile } from '../lib/hooks/useProfile';
 import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../lib/hooks/useSubscription';
 import { type TripWithDetails, useMyTrips } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
-import { pickFeaturedTripForHome, sortTripsForHome } from '../lib/trips/tripUi';
+import { pickFeaturedTripForHome, sortTripsForHome, tripsForHomeTripList } from '../lib/trips/tripUi';
 
 /** Light gray so white trip cards (SimpleTripListCard) read clearly against the screen. */
 const SCREEN_BG = '#FAFAFA';
@@ -72,7 +72,8 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
   };
 
   const fabBottom = Math.max(insets.bottom, 10) + 24;
-  const sortedTrips = useMemo(() => sortTripsForHome(trips), [trips]);
+  const homeTrips = useMemo(() => tripsForHomeTripList(trips), [trips]);
+  const sortedTrips = useMemo(() => sortTripsForHome(homeTrips), [homeTrips]);
 
   const accountDisplayName =
     profile?.full_name?.trim() || profile?.display_name?.trim() || t('profile:travelerFallback');
@@ -81,6 +82,9 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
 
   useEffect(() => {
     if (!sortedTrips.length) {
+      if (activeTrip) {
+        setActiveTrip(null);
+      }
       return;
     }
     if (activeTrip && !sortedTrips.some((x) => x.id === activeTrip.id)) {
@@ -153,6 +157,86 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
         >
           <Text style={{ color: colors.onPrimary, fontWeight: '600' }}>{t('common:retry')}</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  if (!homeTrips.length && trips.length > 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: SCREEN_BG, paddingTop: insets.top + 8, overflow: 'visible' }}>
+        {showAccountLink ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 20,
+              marginBottom: 16,
+            }}
+          >
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 28,
+                fontWeight: '800',
+                color: '#111827',
+                letterSpacing: -0.5,
+                marginRight: 12,
+              }}
+              numberOfLines={1}
+            >
+              {t('trips:homeTitle')}
+            </Text>
+            <Pressable
+              onPress={goAccount}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile:accountSettings')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+            >
+              <Avatar name={accountDisplayName} imageUrl={profile?.avatar_url} size={44} />
+            </Pressable>
+          </View>
+        ) : (
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: '800',
+              color: '#111827',
+              paddingHorizontal: 20,
+              marginBottom: 16,
+              letterSpacing: -0.5,
+            }}
+          >
+            {t('trips:homeTitle')}
+          </Text>
+        )}
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 28 }}>
+          <Text style={{ fontSize: 16, color: '#4B5563', lineHeight: 24, textAlign: 'center', marginBottom: 20 }}>
+            {t('trips:homeOnlyPastTripsHint')}
+          </Text>
+          <Pressable
+            onPress={() => router.push('/(stack)/past-trips')}
+            style={{
+              alignSelf: 'center',
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              backgroundColor: ORANGE,
+              borderRadius: 12,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('trips:homeOpenPastTripsA11y')}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{t('trips:pastTripsTitle')}</Text>
+          </Pressable>
+        </View>
+        <NewTripFab
+          bottom={fabBottom}
+          label={t('trips:fabNewTrip')}
+          accessibilityLabel={t('trips:fabCreateA11y')}
+          onPress={goNewTrip}
+          onLongPress={showTripOptions}
+        />
       </View>
     );
   }

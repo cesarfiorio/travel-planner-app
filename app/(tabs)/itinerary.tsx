@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Localization from 'expo-localization';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -32,6 +32,7 @@ export default function ItineraryScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const activeTrip = useAppStore((s) => s.activeTrip);
+  const setItineraryAddDayNumber = useAppStore((s) => s.setItineraryAddDayNumber);
   const tripId = activeTrip?.id;
 
   const {
@@ -64,17 +65,25 @@ export default function ItineraryScreen() {
   const dayNumbers = useMemo(() => Array.from({ length: dayCount }, (_, i) => i + 1), [dayCount]);
 
   const [selectedDay, setSelectedDay] = useState(1);
-
-  useEffect(() => {
-    if (!tripId) {
-      return;
-    }
-    setSelectedDay(1);
-  }, [tripId]);
+  const prevTripIdForDayTargetRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     setSelectedDay((prev) => Math.min(Math.max(1, prev), dayCount));
   }, [dayCount]);
+
+  useEffect(() => {
+    if (!tripId) {
+      prevTripIdForDayTargetRef.current = undefined;
+      return;
+    }
+    if (prevTripIdForDayTargetRef.current !== tripId) {
+      prevTripIdForDayTargetRef.current = tripId;
+      setSelectedDay(1);
+      setItineraryAddDayNumber(1);
+      return;
+    }
+    setItineraryAddDayNumber(selectedDay);
+  }, [tripId, selectedDay, setItineraryAddDayNumber]);
 
   const subtitle = useMemo(
     () => formatItineraryDestinationSubtitle(activeTrip?.destination_label, activeTrip?.name),
@@ -267,7 +276,7 @@ export default function ItineraryScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: 'SCREEN_BG' }}>
+    <View style={{ flex: 1, backgroundColor: SCREEN_BG }}>
       {headerBlock}
 
       <FlatList
