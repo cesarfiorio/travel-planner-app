@@ -50,7 +50,7 @@ function AuthenticatedGate() {
     return <Redirect href="/(onboarding)/setup" />;
   }
 
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href="/(tabs)/profile" />;
 }
 
 export default function Index() {

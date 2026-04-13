@@ -44,6 +44,7 @@ export function useUpdateTripMemory() {
       itinerary_snapshot?: Json | null;
       cover_photo_url?: string | null;
       cover_place_id?: string | null;
+      favorite_place_id?: string | null;
     }) => {
       if (!supabase || !userId) {
         throw new Error('Not signed in');
@@ -62,6 +63,9 @@ export function useUpdateTripMemory() {
       }
       if (payload.cover_place_id !== undefined) {
         patch.cover_place_id = payload.cover_place_id;
+      }
+      if (payload.favorite_place_id !== undefined) {
+        patch.favorite_place_id = payload.favorite_place_id;
       }
       const { error } = await supabase.from('trip_memories').update(patch).eq('id', payload.memoryId).eq('created_by', userId);
       if (error) {

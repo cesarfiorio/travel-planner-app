@@ -76,7 +76,7 @@ export function usePublishCompletedTripToCommunity() {
       if (!t) {
         throw new Error('Tip required when sharing with the community');
       }
-      if (t.length > 280) {
+      if (t.length > 600) {
         throw new Error('Tip too long');
       }
       if (!input.travelStyle) {

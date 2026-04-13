@@ -438,6 +438,7 @@ export type Database = {
         Row: {
           cover_photo_url: string | null
           cover_place_id: string | null
+          favorite_place_id: string | null
           created_at: string
           created_by: string
           destination_label: string | null
@@ -456,6 +457,7 @@ export type Database = {
         Insert: {
           cover_photo_url?: string | null
           cover_place_id?: string | null
+          favorite_place_id?: string | null
           created_at?: string
           created_by: string
           destination_label?: string | null
@@ -474,6 +476,7 @@ export type Database = {
         Update: {
           cover_photo_url?: string | null
           cover_place_id?: string | null
+          favorite_place_id?: string | null
           created_at?: string
           created_by?: string
           destination_label?: string | null
@@ -537,34 +540,43 @@ export type Database = {
       trip_places: {
         Row: {
           created_at: string
+          custom_title: string | null
           day_number: number
+          duration_minutes: number | null
           id: string
           notes: string | null
           order_index: number
-          place_id: string
+          place_id: string | null
           sort_order: number
+          start_time_local: string | null
           status: string
           trip_id: string
         }
         Insert: {
           created_at?: string
+          custom_title?: string | null
           day_number?: number
+          duration_minutes?: number | null
           id?: string
           notes?: string | null
           order_index?: number
-          place_id: string
+          place_id?: string | null
           sort_order?: number
+          start_time_local?: string | null
           status?: string
           trip_id: string
         }
         Update: {
           created_at?: string
+          custom_title?: string | null
           day_number?: number
+          duration_minutes?: number | null
           id?: string
           notes?: string | null
           order_index?: number
-          place_id?: string
+          place_id?: string | null
           sort_order?: number
+          start_time_local?: string | null
           status?: string
           trip_id?: string
         }

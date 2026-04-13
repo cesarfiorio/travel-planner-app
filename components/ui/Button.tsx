@@ -25,7 +25,7 @@ export interface ButtonProps {
 }
 
 const BG: Record<ButtonVariant, string> = {
-  primary: '#F0652B',
+  primary: colors.primarySolid,
   secondary: '#F0F0F0',
   outline: 'transparent',
   ghost: 'transparent',
@@ -33,17 +33,17 @@ const BG: Record<ButtonVariant, string> = {
 };
 
 const TEXT_COLOR: Record<ButtonVariant, string> = {
-  primary: '#FFFFFF',
+  primary: colors.onPrimary,
   secondary: colors.text,
-  outline: '#F0652B',
-  ghost: '#F0652B',
-  destructive: '#FFFFFF',
+  outline: colors.primarySolid,
+  ghost: colors.primarySolid,
+  destructive: colors.onPrimary,
 };
 
 const BORDER: Record<ButtonVariant, string | undefined> = {
   primary: undefined,
   secondary: undefined,
-  outline: '#F0652B',
+  outline: colors.primarySolid,
   ghost: undefined,
   destructive: undefined,
 };
@@ -70,6 +70,8 @@ export function Button({
 
   return (
     <Pressable
+      // NativeWind can wrap Pressable and drop inline backgrounds — primary looked white-on-white.
+      {...{ cssInterop: false }}
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"

@@ -57,7 +57,9 @@ export function useTripPlaceIds(tripId: string | undefined) {
       if (error) {
         throw error;
       }
-      return new Set((data ?? []).map((r) => r.place_id));
+      return new Set(
+        (data ?? []).map((r) => r.place_id).filter((id): id is string => typeof id === 'string' && id.length > 0),
+      );
     },
   });
 }

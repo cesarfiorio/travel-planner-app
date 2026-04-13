@@ -4,20 +4,22 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
   Text,
   View,
 } from 'react-native';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddCustomItineraryActivityModal } from '../../components/AddCustomItineraryActivityModal';
+import { ItineraryActivityDetailModal } from '../../components/ItineraryActivityDetailModal';
 import { ItineraryPlaceRow } from '../../components/ItineraryPlaceRow';
 import { colors } from '../../constants/colors';
 import { COLORS, FONT, LAYOUT, RADIUS, SHADOW, SPACING } from '../../constants/theme';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { useItinerary } from '../../lib/hooks/useItinerary';
+import { useAddCustomItineraryActivity, useItinerary, type ItineraryPlaceVm } from '../../lib/hooks/useItinerary';
 import { itineraryShortDateForDay } from '../../lib/itinerary/dayDate';
 import { formatItineraryDestinationSubtitle } from '../../lib/itinerary/itinerarySubtitle';
 import { useAppStore } from '../../lib/store/appStore';
@@ -25,6 +27,8 @@ import { parseLocalDate, tripDurationDays } from '../../lib/trips/tripUi';
 
 const SCREEN_BG = '#F3F4F6';
 const ORANGE = '#F05A1A';
+/** Space so the last list row clears the stacked floating action buttons. */
+const ITINERARY_FLOATING_ACTIONS_CLEARANCE = 132;
 
 export default function ItineraryScreen() {
   const { t } = useTranslation(['trips', 'common']);
@@ -43,7 +47,12 @@ export default function ItineraryScreen() {
     refetch,
     isRefetching,
     removePlace,
+    reorderDay,
+    updateSchedule,
+    isSavingSchedule,
   } = useItinerary(tripId);
+
+  const addCustomActivity = useAddCustomItineraryActivity();
 
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en';
 
@@ -65,11 +74,17 @@ export default function ItineraryScreen() {
   const dayNumbers = useMemo(() => Array.from({ length: dayCount }, (_, i) => i + 1), [dayCount]);
 
   const [selectedDay, setSelectedDay] = useState(1);
+  const [detailRow, setDetailRow] = useState<ItineraryPlaceVm | null>(null);
+  const [customActivityOpen, setCustomActivityOpen] = useState(false);
   const prevTripIdForDayTargetRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     setSelectedDay((prev) => Math.min(Math.max(1, prev), dayCount));
   }, [dayCount]);
+
+  useEffect(() => {
+    setDetailRow(null);
+  }, [tripId, selectedDay]);
 
   useEffect(() => {
     if (!tripId) {
@@ -92,6 +107,8 @@ export default function ItineraryScreen() {
 
   const sectionForSelected = rawSections.find((s) => s.dayNumber === selectedDay);
   const dayItems = sectionForSelected?.data ?? [];
+  const detailListIndex = detailRow ? dayItems.findIndex((r) => r.tripPlaceId === detailRow.tripPlaceId) : -1;
+  const detailModalOrderIndex = detailRow ? (detailListIndex >= 0 ? detailListIndex : detailRow.orderIndex) : 0;
 
   if (!activeTrip) {
     return (
@@ -260,16 +277,47 @@ export default function ItineraryScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: SCREEN_BG }}>
         {headerBlock}
+        <AddCustomItineraryActivityModal
+          visible={customActivityOpen}
+          onClose={() => setCustomActivityOpen(false)}
+          saving={addCustomActivity.isPending}
+          onAdd={(title, notes) =>
+            void addCustomActivity.mutateAsync({
+              tripId: tripId!,
+              title,
+              notes: notes || null,
+              dayNumber: selectedDay,
+            })
+          }
+        />
         <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 24 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 }}>{t('itineraryEmptyTitle')}</Text>
           <Text style={{ fontSize: 16, color: colors.inactive, lineHeight: 24, marginBottom: 20 }}>{t('itineraryEmptyBody')}</Text>
-          <Pressable
-            onPress={() => router.push('/(tabs)/explore')}
-            style={{ alignSelf: 'flex-start', paddingVertical: 14, paddingHorizontal: 22, backgroundColor: ORANGE, borderRadius: 14 }}
-            accessibilityRole="button"
-          >
-            <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{t('itineraryGoExplore')}</Text>
-          </Pressable>
+          <View style={{ gap: 12 }}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/explore')}
+              style={{ alignSelf: 'stretch', paddingVertical: 14, paddingHorizontal: 22, backgroundColor: ORANGE, borderRadius: 14 }}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: colors.onPrimary, fontWeight: '700', textAlign: 'center' }}>{t('itineraryGoExplore')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setCustomActivityOpen(true)}
+              style={{
+                alignSelf: 'stretch',
+                paddingVertical: 14,
+                paddingHorizontal: 22,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: ORANGE,
+                backgroundColor: '#FFFFFF',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('itineraryAddCustomA11y')}
+            >
+              <Text style={{ color: ORANGE, fontWeight: '700', textAlign: 'center' }}>{t('itineraryAddCustomCta')}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     );
@@ -279,43 +327,96 @@ export default function ItineraryScreen() {
     <View style={{ flex: 1, backgroundColor: SCREEN_BG }}>
       {headerBlock}
 
-      <FlatList
-        data={dayItems}
-        keyExtractor={(item) => item.tripPlaceId}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={ORANGE} />
+      <ItineraryActivityDetailModal
+        visible={detailRow != null}
+        row={detailRow}
+        listOrderIndex={detailModalOrderIndex}
+        accessToken={session?.access_token}
+        locale={locale}
+        onClose={() => setDetailRow(null)}
+        saving={isSavingSchedule}
+        onSave={(payload) =>
+          void updateSchedule({
+            tripPlaceId: payload.tripPlaceId,
+            startTimeLocal: payload.startTimeLocal,
+            durationMinutes: payload.durationMinutes,
+            notes: payload.notes,
+            ...(payload.customTitle !== undefined ? { customTitle: payload.customTitle } : {}),
+          })
         }
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 16,
-          flexGrow: 1,
-        }}
-        ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: colors.inactive, marginTop: 40, paddingHorizontal: 24 }}>
-            {t('itineraryEmptyDay')}
-          </Text>
+        onRemove={(id) => void removePlace(id)}
+      />
+
+      <View style={{ flex: 1, minHeight: 0, zIndex: 0 }}>
+        <DraggableFlatList
+          containerStyle={{ flex: 1 }}
+          style={{ flex: 1 }}
+          data={dayItems}
+          keyExtractor={(item) => item.tripPlaceId}
+          onDragEnd={({ data }) => {
+            void reorderDay({
+              dayNumber: selectedDay,
+              orderedTripPlaceIds: data.map((i) => i.tripPlaceId),
+            });
+          }}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={ORANGE} />
+          }
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 4,
+            paddingBottom: ITINERARY_FLOATING_ACTIONS_CLEARANCE + insets.bottom + 12,
+            flexGrow: 1,
+          }}
+          ListEmptyComponent={
+            <Text style={{ textAlign: 'center', color: colors.inactive, marginTop: 40, paddingHorizontal: 24 }}>
+              {t('itineraryEmptyDay')}
+            </Text>
+          }
+          renderItem={({ item, getIndex, drag, isActive }) => {
+            const index = getIndex() ?? 0;
+            return (
+              <ScaleDecorator>
+                <View style={{ marginBottom: 10, opacity: isActive ? 0.95 : 1 }}>
+                  <ItineraryPlaceRow
+                    row={item}
+                    accessToken={session?.access_token}
+                    orderIndex={index}
+                    locale={locale}
+                    drag={drag}
+                    onOpenDetail={setDetailRow}
+                  />
+                </View>
+              </ScaleDecorator>
+            );
+          }}
+        />
+      </View>
+
+      <AddCustomItineraryActivityModal
+        visible={customActivityOpen}
+        onClose={() => setCustomActivityOpen(false)}
+        saving={addCustomActivity.isPending}
+        onAdd={(title, notes) =>
+          void addCustomActivity.mutateAsync({
+            tripId: tripId!,
+            title,
+            notes: notes || null,
+            dayNumber: selectedDay,
+          })
         }
-        renderItem={({ item, index }) => (
-          <View style={{ marginBottom: 10 }}>
-            <ItineraryPlaceRow
-              row={item}
-              accessToken={session?.access_token}
-              orderIndex={index}
-              locale={locale}
-              onRemove={(id) => void removePlace(id)}
-            />
-          </View>
-        )}
       />
 
       <View
+        pointerEvents="box-none"
         style={{
-          paddingHorizontal: 16,
-          paddingTop: 2,
-          paddingBottom: Math.min(2, insets.bottom + 1),
-          backgroundColor: '#00000000',
-          borderTopWidth: 1,
-          borderTopColor: '#00000000',
+          position: 'absolute',
+          left: 16,
+          right: 16,
+          bottom: Math.max(insets.bottom, 10) + 6,
+          zIndex: 100,
+          elevation: 12,
+          gap: 10,
         }}
       >
         <Pressable
@@ -325,16 +426,30 @@ export default function ItineraryScreen() {
             borderRadius: 9999,
             backgroundColor: ORANGE,
             alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 8,
-            elevation: 1,
+            ...SHADOW.lg,
+            elevation: 6,
           }}
           accessibilityRole="button"
           accessibilityLabel={t('itineraryAddActivity')}
         >
           <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700' }}>{t('itineraryAddActivity')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setCustomActivityOpen(true)}
+          style={{
+            paddingVertical: 14,
+            borderRadius: 9999,
+            borderWidth: 1.5,
+            borderColor: ORANGE,
+            backgroundColor: COLORS.cardBg,
+            alignItems: 'center',
+            ...SHADOW.md,
+            elevation: 5,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('itineraryAddCustomA11y')}
+        >
+          <Text style={{ color: ORANGE, fontSize: 16, fontWeight: '700' }}>{t('itineraryAddCustomCta')}</Text>
         </Pressable>
       </View>
     </View>

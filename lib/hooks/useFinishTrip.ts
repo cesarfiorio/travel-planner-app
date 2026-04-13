@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { TravelStyleId } from '../community/constants';
+import { fetchDestinationCoverUrl } from '../community/destinationCoverPhoto';
 import { uploadMemoryCover } from '../storage/uploadMemoryCover';
 import { supabase } from '../supabase';
 import { buildRouteGeoJson } from '../utils/routeGeoJson';
@@ -33,6 +34,8 @@ export type FinishTripInput = {
   mood: MemoryMood;
   coverPlaceId: string | null;
   coverLocalUri: string | null;
+  /** Saved on `trip_memories` when creating a memory; `null` = use itinerary suggestion only. */
+  favoritePlaceId: string | null;
   placesVisited: number;
   totalSpentCents: number;
   travelersCount: number;
@@ -66,7 +69,7 @@ export function useFinishTrip() {
         if (!t) {
           throw new Error('Tip required when sharing with the community');
         }
-        if (t.length > 280) {
+        if (t.length > 600) {
           throw new Error('Tip too long');
         }
         if (!input.travelStyle) {
@@ -83,6 +86,11 @@ export function useFinishTrip() {
       let coverUrl: string | null = null;
       if (input.createMemory && input.explorer && input.coverLocalUri?.trim()) {
         coverUrl = await uploadMemoryCover(input.coverLocalUri.trim(), userId);
+      } else if (input.createMemory && input.explorer) {
+        const dest = input.destinationLabel?.trim() || input.tripName.trim() || '';
+        if (dest.length >= 2) {
+          coverUrl = await fetchDestinationCoverUrl(dest);
+        }
       }
 
       let durationDays: number | null = null;
@@ -158,6 +166,7 @@ export function useFinishTrip() {
           mood: input.mood,
           cover_photo_url: coverUrl,
           cover_place_id: coverUrl ? null : input.coverPlaceId,
+          favorite_place_id: input.favoritePlaceId,
           places_visited: input.placesVisited,
           total_spent_cents: input.totalSpentCents,
           travelers_count: input.travelersCount,

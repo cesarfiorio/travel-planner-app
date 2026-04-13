@@ -140,16 +140,28 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
 
   const renderTripRow: ListRenderItem<TripWithDetails> = useCallback(
     ({ item }) => (
-      <SimpleTripListCard trip={item} locale={locale} selectActiveOnly={profileTripSelectOnly} />
+      <SimpleTripListCard
+        trip={item}
+        locale={locale}
+        selectActiveOnly={profileTripSelectOnly}
+        showProfileOverflow={profileTripSelectOnly}
+        currentUserId={userId}
+      />
     ),
-    [locale, profileTripSelectOnly],
+    [locale, profileTripSelectOnly, userId],
   );
 
   const listHeader = useMemo(
     () => (
       <>
         {active ? (
-          <FeaturedActiveTripCard trip={active} locale={locale} selectActiveOnly={profileTripSelectOnly} />
+          <FeaturedActiveTripCard
+            trip={active}
+            locale={locale}
+            selectActiveOnly={profileTripSelectOnly}
+            showProfileOverflow={profileTripSelectOnly}
+            currentUserId={userId}
+          />
         ) : null}
         {others.length > 0 ? (
           <Text
@@ -166,7 +178,7 @@ export function TripsHomeView({ showAccountLink = false }: Props) {
         ) : null}
       </>
     ),
-    [active, others.length, locale, t, profileTripSelectOnly],
+    [active, others.length, locale, t, profileTripSelectOnly, userId],
   );
 
   if (isLoading) {

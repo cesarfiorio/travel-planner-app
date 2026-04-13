@@ -5,6 +5,7 @@ module.exports = function (api) {
       ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
       'nativewind/babel',
     ],
-    plugins: ['expo-router/babel'],
+    // `react-native-reanimated/plugin` must be listed last (Reanimated 4 / Worklets + RNGH).
+    plugins: ['react-native-reanimated/plugin'],
   };
 };

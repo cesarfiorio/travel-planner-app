@@ -27,22 +27,30 @@ export type CommunityRouteVm = RankedRouteRow & {
   likedByMe: boolean;
   savedByMe: boolean;
   usedByMe: boolean;
+  /** When the current user adopted this route, their trip id (detail fetch only). */
+  adoptedTripId?: string | null;
+  creatorBio?: string | null;
 };
 
-async function fetchProfilesMap(ids: string[]): Promise<Map<string, { display_name: string | null; full_name: string | null; avatar_url: string | null }>> {
-  const map = new Map<string, { display_name: string | null; full_name: string | null; avatar_url: string | null }>();
+async function fetchProfilesMap(
+  ids: string[],
+): Promise<Map<string, { display_name: string | null; full_name: string | null; avatar_url: string | null; bio: string | null }>> {
+  const map = new Map<
+    string,
+    { display_name: string | null; full_name: string | null; avatar_url: string | null; bio: string | null }
+  >();
   if (!supabase || ids.length === 0) {
     return map;
   }
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, full_name, avatar_url')
+    .select('id, display_name, full_name, avatar_url, bio')
     .in('id', [...new Set(ids)]);
   if (error || !data) {
     return map;
   }
   for (const p of data) {
-    map.set(p.id, { display_name: p.display_name, full_name: p.full_name, avatar_url: p.avatar_url });
+    map.set(p.id, { display_name: p.display_name, full_name: p.full_name, avatar_url: p.avatar_url, bio: p.bio });
   }
   return map;
 }
@@ -68,8 +76,11 @@ export function useCommunityFeed(
       const to = from + PAGE - 1;
       let q = supabase.from('ranked_routes').select('*').order('published_at', { ascending: false });
       const s = search.trim();
-      if (s) {
-        q = q.ilike('destination', `%${s}%`);
+      /** Avoid breaking PostgREST `or()` and wildcard injection. */
+      const safe = s.replace(/[%_,]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (safe) {
+        const pattern = `%${safe}%`;
+        q = q.or(`destination.ilike.${pattern},title.ilike.${pattern}`);
       }
       if (tagContains) {
         q = q.contains('tags', [tagContains]);
@@ -108,6 +119,7 @@ export function useCommunityFeed(
           ...r,
           creatorName: name,
           creatorAvatar: p?.avatar_url ?? null,
+          creatorBio: p?.bio?.trim() || null,
           likedByMe: liked.has(r.id),
           savedByMe: saved.has(r.id),
           usedByMe: used.has(r.id),
@@ -147,9 +159,10 @@ export function useCommunityRoute(routeId: string | undefined) {
       const [likeRes, saveRes, usedRes] = await Promise.all([
         supabase.from('community_route_likes').select('id').eq('route_id', routeId).eq('user_id', uid).maybeSingle(),
         supabase.from('route_saves').select('route_id').eq('route_id', routeId).eq('user_id', uid).maybeSingle(),
-        supabase.from('route_used').select('route_id').eq('route_id', routeId).eq('user_id', uid).maybeSingle(),
+        supabase.from('route_used').select('route_id, trip_id').eq('route_id', routeId).eq('user_id', uid).maybeSingle(),
       ]);
       const score = scoreFromRouteRow(row);
+      const adoptedTripId = usedRes.data?.trip_id?.trim() || null;
       return {
         ...(row as RankedRouteRow),
         score,
@@ -157,10 +170,145 @@ export function useCommunityRoute(routeId: string | undefined) {
         used_count: (row as Record<string, unknown>).used_count as number ?? 0,
         creatorName: name,
         creatorAvatar: p?.avatar_url ?? null,
+        creatorBio: p?.bio?.trim() || null,
         likedByMe: Boolean(likeRes.data),
         savedByMe: Boolean(saveRes.data),
-        usedByMe: Boolean(usedRes.data),
+        usedByMe: Boolean(usedRes.data?.route_id),
+        adoptedTripId,
       };
+    },
+  });
+}
+
+/** Real itinerary from the published source trip (`community_routes.trip_id`), grouped by `day_number`. */
+export type CommunitySourceItineraryStop = {
+  orderIndex: number;
+  placeId: string;
+  name: string;
+  category: string | null;
+  address: string | null;
+  rating: number | null;
+  notes: string | null;
+  status: 'planned' | 'visited' | 'skipped';
+};
+
+export type CommunitySourceItineraryDay = {
+  dayNumber: number;
+  stops: CommunitySourceItineraryStop[];
+};
+
+export type CommunitySourceAdoptRow = {
+  place_id: string;
+  day_number: number;
+  order_index: number;
+  status: string;
+  notes: string | null;
+  start_time_local: string | null;
+  duration_minutes: number | null;
+};
+
+export async function fetchCommunitySourceItinerary(tripId: string): Promise<{
+  days: CommunitySourceItineraryDay[];
+  adoptRows: CommunitySourceAdoptRow[];
+}> {
+  if (!supabase) {
+    return { days: [], adoptRows: [] };
+  }
+  const { data, error } = await supabase
+    .from('trip_places')
+    .select(
+      `
+      day_number,
+      order_index,
+      status,
+      notes,
+      start_time_local,
+      duration_minutes,
+      places (
+        id,
+        name,
+        category,
+        formatted_address,
+        rating
+      )
+    `,
+    )
+    .eq('trip_id', tripId)
+    .order('day_number', { ascending: true })
+    .order('order_index', { ascending: true });
+  if (error) {
+    throw error;
+  }
+  type TripPlaceSourceRow = {
+    day_number: number;
+    order_index: number;
+    status: string;
+    notes: string | null;
+    start_time_local: string | null;
+    duration_minutes: number | null;
+    places: unknown;
+  };
+
+  const adoptRows: CommunitySourceAdoptRow[] = [];
+  const byDay = new Map<number, CommunitySourceItineraryStop[]>();
+  for (const raw of data ?? []) {
+    const r = raw as TripPlaceSourceRow;
+    const p = r.places as {
+      id: string;
+      name: string;
+      category: string | null;
+      formatted_address: string | null;
+      rating: number | null;
+    } | null;
+    if (!p?.id || !p.name?.trim()) {
+      continue;
+    }
+    const st = r.status;
+    if (st !== 'planned' && st !== 'visited' && st !== 'skipped') {
+      continue;
+    }
+    adoptRows.push({
+      place_id: p.id,
+      day_number: r.day_number,
+      order_index: r.order_index,
+      status: st,
+      notes: r.notes ?? null,
+      start_time_local: r.start_time_local ?? null,
+      duration_minutes: r.duration_minutes != null ? Number(r.duration_minutes) : null,
+    });
+    const stop: CommunitySourceItineraryStop = {
+      orderIndex: r.order_index,
+      placeId: p.id,
+      name: p.name.trim(),
+      category: p.category ?? null,
+      address: p.formatted_address?.trim() ?? null,
+      rating: p.rating != null ? Number(p.rating) : null,
+      notes: r.notes?.trim() || null,
+      status: st,
+    };
+    const list = byDay.get(r.day_number) ?? [];
+    list.push(stop);
+    byDay.set(r.day_number, list);
+  }
+  const days: CommunitySourceItineraryDay[] = [...byDay.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([dayNumber, stops]) => ({
+      dayNumber,
+      stops: [...stops].sort((x, y) => x.orderIndex - y.orderIndex),
+    }));
+  return { days, adoptRows };
+}
+
+export const communitySourceItineraryQueryKey = (tripId: string) => ['communitySourceItinerary', tripId] as const;
+
+export function useCommunitySourceItinerary(tripId: string | null | undefined) {
+  const tid = tripId?.trim() ?? '';
+  return useQuery({
+    queryKey: communitySourceItineraryQueryKey(tid),
+    enabled: Boolean(tid && hasSupabaseEnv && supabase),
+    queryFn: async () => {
+      const { days } = await fetchCommunitySourceItinerary(tid);
+      return days;
     },
   });
 }

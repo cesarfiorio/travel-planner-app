@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,7 +10,6 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   Switch,
@@ -27,32 +25,21 @@ import { PlanGate } from '../../../components/PlanGate';
 import { TripShareCard, type TripShareCardHandle, ShareFormatSheet } from '../../../components/share';
 import { colors } from '../../../constants/colors';
 import { COMMUNITY_TAG_IDS, TRAVEL_STYLE_IDS, type TravelStyleId } from '../../../lib/community/constants';
-import { getPlacePhotoSource } from '../../../lib/api/placePhoto';
 import { formatErrorMessage } from '../../../lib/formatError';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { useDestinationCoverPhoto } from '../../../lib/hooks/useDestinationCoverPhoto';
 import { useFinishTrip, type MemoryMood } from '../../../lib/hooks/useFinishTrip';
 import { useItinerary, type ItineraryPlaceVm } from '../../../lib/hooks/useItinerary';
-import { usePlaceById } from '../../../lib/hooks/usePlaceDetail';
 import { useSubscription } from '../../../lib/hooks/useSubscription';
 import { useTripExpenses } from '../../../lib/hooks/useExpenses';
 import { useCommunityRouteForTrip, usePublishCompletedTripToCommunity } from '../../../lib/hooks/usePublishTripCommunity';
-import {
-  tripMemoryQueryKey,
-  useAddJournalEntry,
-  useDeleteJournalEntry,
-  useTripJournal,
-  useTripMemoryByTripId,
-  useUpdateJournalEntry,
-  useUpdateTripMemory,
-} from '../../../lib/hooks/useTripMemory';
+import { tripMemoryQueryKey, useTripMemoryByTripId, useUpdateTripMemory } from '../../../lib/hooks/useTripMemory';
 import { useTrip } from '../../../lib/hooks/useTrips';
 import { hasSupabaseEnv, supabase } from '../../../lib/supabase';
 import { tripRowToSnapshot, useAppStore } from '../../../lib/store/appStore';
-import { firstPhotoReference } from '../../../lib/places/firstPhotoRef';
-import { uploadMemoryCover } from '../../../lib/storage/uploadMemoryCover';
 import { itinerarySnapshotFromPlaces } from '../../../lib/trips/memoryItinerary';
 import { favoriteSpotInfo, mostActiveDayInfo, tripDurationDaysFromStrings } from '../../../lib/trips/completeTripInsights';
-import { coverGradientFromDestination, parseLocalDate, primaryTripEntryPath } from '../../../lib/trips/tripUi';
+import { coverGradientFromDestination, isTripOnOrAfterEndDateLocal, primaryTripEntryPath } from '../../../lib/trips/tripUi';
 import type { PlacePin } from '../../../lib/utils/routeGeoJson';
 import { formatCurrency } from '../../../lib/utils/formatCurrency';
 import { captureAndShare, type ShareFormat } from '../../../lib/utils/shareCard';
@@ -77,24 +64,6 @@ function memoryMoodText(mood: string, tm: TFunction<'memory'>): string {
   return mood;
 }
 
-function formatTripDateRange(start: string | null, end: string | null, locale: string, fallback: string): string {
-  const a = parseLocalDate(start);
-  const b = parseLocalDate(end);
-  if (!a || !b) {
-    return fallback;
-  }
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-  return `${a.toLocaleDateString(locale, opts)} – ${b.toLocaleDateString(locale, opts)}`;
-}
-
-function formatYmdDisplay(ymd: string | null, locale: string): string {
-  const d = parseLocalDate(ymd);
-  if (!d) {
-    return '—';
-  }
-  return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
 export default function FinishTripScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string | string[] }>();
   const tripId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -104,7 +73,7 @@ export default function FinishTripScreen() {
   const { t: tm } = useTranslation('memory');
   const { t: tc } = useTranslation('community');
   const { t: ts } = useTranslation('share');
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const userId = user?.id ?? '';
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
   const queryClient = useQueryClient();
@@ -130,10 +99,6 @@ export default function FinishTripScreen() {
   const [travelStyle, setTravelStyle] = useState<TravelStyleId | null>('group');
   const [memoryOn, setMemoryOn] = useState(true);
   const [mood, setMood] = useState<MemoryMood>('great');
-  const [coverPlaceId, setCoverPlaceId] = useState<string | null>(null);
-  const [coverLocalUri, setCoverLocalUri] = useState<string | null>(null);
-  const [memoryCoverLocalUri, setMemoryCoverLocalUri] = useState<string | null>(null);
-  const [coverUploadBusy, setCoverUploadBusy] = useState(false);
 
   const [publishTip, setPublishTip] = useState('');
   const [publishTags, setPublishTags] = useState<string[]>([]);
@@ -144,13 +109,22 @@ export default function FinishTripScreen() {
   const [shareBusy, setShareBusy] = useState(false);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
+  /** `null` = use suggested favorite (most stops); otherwise explicit `places.id`. */
+  const [favoritePlaceId, setFavoritePlaceId] = useState<string | null>(null);
 
   useEffect(() => {
     memoryEnsureAttempted.current = false;
   }, [tripId]);
+
+  useEffect(() => {
+    setFavoritePlaceId(null);
+  }, [tripId]);
+
+  useEffect(() => {
+    if (trip?.status === 'completed' && memory) {
+      setFavoritePlaceId(memory.favorite_place_id ?? null);
+    }
+  }, [trip?.status, memory?.id, memory?.favorite_place_id]);
 
   useEffect(() => {
     communityFormSeededRef.current = '';
@@ -254,7 +228,14 @@ export default function FinishTripScreen() {
   );
 
   const isCompleted = trip?.status === 'completed';
-  const isActiveFinish = trip?.status === 'active';
+  const canFinishPlanningTrip = useMemo(
+    () => (trip ? isTripOnOrAfterEndDateLocal(trip) : false),
+    [trip],
+  );
+  /** Allow finish + community when active, or planning but calendar end has arrived (or passed). */
+  const isActiveFinish = Boolean(
+    trip && (trip.status === 'active' || (trip.status === 'planning' && canFinishPlanningTrip)),
+  );
 
   const visitedPlaces = useMemo(
     () => itineraryPlaces.filter((r: ItineraryPlaceVm) => r.status === 'visited'),
@@ -262,7 +243,10 @@ export default function FinishTripScreen() {
   );
   const placesForCount = visitedPlaces.length > 0 ? visitedPlaces : itineraryPlaces;
   const placesVisited = visitedPlaces.length > 0 ? visitedPlaces.length : itineraryPlaces.length;
-  const placeIds = useMemo(() => itineraryPlaces.map((r) => r.placeId), [itineraryPlaces]);
+  const placeIds = useMemo(
+    () => itineraryPlaces.map((r) => r.placeId).filter((id): id is string => id != null && id.length > 0),
+    [itineraryPlaces],
+  );
 
   const placesDisplayCount = useMemo(() => {
     if (itineraryPlaces.length > 0) {
@@ -272,22 +256,28 @@ export default function FinishTripScreen() {
   }, [itineraryPlaces, memory?.places_visited]);
 
   const communityRoutePins = useMemo((): PlacePin[] => {
-    const ids = [...new Set(itineraryPlaces.map((p) => p.placeId))];
+    const ids = [
+      ...new Set(
+        itineraryPlaces.map((p) => p.placeId).filter((id): id is string => id != null && id.length > 0),
+      ),
+    ];
     const rowByPlace = new Map<string, ItineraryPlaceVm>();
     for (const p of itineraryPlaces) {
-      if (!rowByPlace.has(p.placeId)) {
+      if (p.placeId && !rowByPlace.has(p.placeId)) {
         rowByPlace.set(p.placeId, p);
       }
     }
-    return ids.map((id) => {
-      const p = rowByPlace.get(id)!;
-      return {
-        id: p.placeId,
-        name: p.name,
-        latitude: p.latitude,
-        longitude: p.longitude,
-      };
-    });
+    return ids
+      .map((id) => {
+        const p = rowByPlace.get(id)!;
+        return {
+          id: p.placeId as string,
+          name: p.name,
+          latitude: p.latitude,
+          longitude: p.longitude,
+        };
+      })
+      .filter((pin) => pin.latitude != null && pin.longitude != null);
   }, [itineraryPlaces]);
 
   const travelersCount = useMemo(() => {
@@ -329,21 +319,71 @@ export default function FinishTripScreen() {
     [trip?.start_date, trip?.end_date],
   );
 
-  const heroDateRange = useMemo(
-    () => formatTripDateRange(trip?.start_date ?? null, trip?.end_date ?? null, locale, tt('finishDatesUnknown')),
-    [trip?.start_date, trip?.end_date, locale, tt],
-  );
-
   const heroTitle = useMemo(
     () => trip?.destination_label?.trim() || trip?.name || '',
     [trip?.destination_label, trip?.name],
+  );
+
+  const destLabel = useMemo(
+    () => trip?.destination_label?.trim() || trip?.name?.trim() || '',
+    [trip?.destination_label, trip?.name],
+  );
+  const { data: destinationHeroUrl } = useDestinationCoverPhoto(destLabel, destLabel.length >= 2);
+  const heroImageSource = useMemo(
+    () => (destinationHeroUrl?.trim() ? { uri: destinationHeroUrl.trim() } : null),
+    [destinationHeroUrl],
   );
 
   const mostActive = useMemo(
     () => mostActiveDayInfo(itineraryPlaces, trip?.start_date ?? null, locale),
     [itineraryPlaces, trip?.start_date, locale],
   );
-  const favoriteSpot = useMemo(() => favoriteSpotInfo(itineraryPlaces), [itineraryPlaces]);
+  const favoriteSpotAuto = useMemo(() => favoriteSpotInfo(itineraryPlaces), [itineraryPlaces]);
+
+  const uniquePlacesForFavorite = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { placeId: string; name: string }[] = [];
+    for (const p of itineraryPlaces) {
+      if (!p.placeId || seen.has(p.placeId)) {
+        continue;
+      }
+      seen.add(p.placeId);
+      out.push({ placeId: p.placeId, name: p.name });
+    }
+    return out;
+  }, [itineraryPlaces]);
+
+  const displayFavorite = useMemo(() => {
+    if (favoritePlaceId) {
+      const rows = itineraryPlaces.filter((p) => p.placeId === favoritePlaceId);
+      if (rows.length > 0) {
+        return { name: rows[0].name, visits: rows.length };
+      }
+    }
+    return favoriteSpotAuto ? { name: favoriteSpotAuto.name, visits: favoriteSpotAuto.visits } : null;
+  }, [favoritePlaceId, itineraryPlaces, favoriteSpotAuto]);
+
+  const canPickFavoriteSpot = useMemo(
+    () =>
+      isOwner &&
+      uniquePlacesForFavorite.length > 0 &&
+      (isActiveFinish || (isCompleted && Boolean(memory))),
+    [isOwner, uniquePlacesForFavorite.length, isActiveFinish, isCompleted, memory],
+  );
+
+  const applyFavoritePlaceSelection = useCallback(
+    (placeId: string | null) => {
+      setFavoritePlaceId(placeId);
+      if (isCompleted && memory?.id && isOwner) {
+        updateTripMemoryPlaces.mutate({
+          memoryId: memory.id,
+          tripId: tripId!,
+          favorite_place_id: placeId,
+        });
+      }
+    },
+    [isCompleted, memory?.id, isOwner, tripId, updateTripMemoryPlaces],
+  );
   const perPersonCents =
     travelersCount > 0 ? Math.round(spentCentsForDisplay / travelersCount) : spentCentsForDisplay;
   const perPersonLabel = useMemo(
@@ -355,43 +395,6 @@ export default function FinishTripScreen() {
     () => isOwner && isCompleted,
     [isOwner, isCompleted],
   );
-
-  const { data: coverPlace } = usePlaceById(memory?.cover_place_id ?? undefined);
-  const { data: journal = [] } = useTripJournal(memory?.id);
-  const addJ = useAddJournalEntry();
-  const updJ = useUpdateJournalEntry();
-  const delJ = useDeleteJournalEntry();
-
-  const coverRef = memory?.cover_place_id ? firstPhotoReference(coverPlace?.photos) : undefined;
-  const memoryCoverRemote =
-    memory?.cover_photo_url?.trim() ?
-      { uri: memory.cover_photo_url.trim() }
-    : getPlacePhotoSource(coverRef, session?.access_token ?? null);
-
-  const activeHeroExtra = useMemo(() => {
-    if (!coverPlaceId) {
-      return null;
-    }
-    const row = itineraryPlaces.find((p) => p.placeId === coverPlaceId);
-    const ref = row ? firstPhotoReference(row.photos) : undefined;
-    return getPlacePhotoSource(ref, session?.access_token ?? null);
-  }, [coverPlaceId, itineraryPlaces, session?.access_token]);
-
-  const heroImageSource = useMemo(() => {
-    if (isActiveFinish) {
-      if (coverLocalUri) {
-        return { uri: coverLocalUri };
-      }
-      if (activeHeroExtra) {
-        return activeHeroExtra;
-      }
-      return null;
-    }
-    if (memoryCoverLocalUri) {
-      return { uri: memoryCoverLocalUri };
-    }
-    return memoryCoverRemote;
-  }, [isActiveFinish, coverLocalUri, activeHeroExtra, memoryCoverLocalUri, memoryCoverRemote]);
 
   const heroGradient = useMemo(
     () => coverGradientFromDestination(trip?.destination_label ?? trip?.name),
@@ -424,83 +427,15 @@ export default function FinishTripScreen() {
     });
   };
 
-  const pickImageActive = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
-    if (!res.canceled && res.assets[0]?.uri) {
-      setCoverLocalUri(res.assets[0].uri);
-      setCoverPlaceId(null);
-    }
-  };
-
-  const pickMemoryCoverPhoto = useCallback(async () => {
-    if (!memory || !tripId || !userId) {
-      return;
-    }
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
-    if (res.canceled || !res.assets[0]?.uri) {
-      return;
-    }
-    const uri = res.assets[0].uri;
-    setMemoryCoverLocalUri(uri);
-    setCoverUploadBusy(true);
-    try {
-      const url = await uploadMemoryCover(uri, userId);
-      if (!url) {
-        throw new Error('upload');
-      }
-      updateTripMemoryPlaces.mutate(
-        {
-          memoryId: memory.id,
-          tripId,
-          cover_photo_url: url,
-          cover_place_id: null,
-        },
-        {
-          onSuccess: () => setMemoryCoverLocalUri(null),
-          onError: (e) => {
-            setMemoryCoverLocalUri(null);
-            Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('errorSave')));
-          },
-          onSettled: () => setCoverUploadBusy(false),
-        },
-      );
-    } catch (e) {
-      setMemoryCoverLocalUri(null);
-      setCoverUploadBusy(false);
-      Alert.alert(tm('errorTitle'), formatErrorMessage(e, tt('communityCoverUploadError')));
-    }
-  }, [memory, tripId, userId, updateTripMemoryPlaces, tm, tt]);
-
-  const clearMemoryCoverPhoto = useCallback(() => {
-    if (!memory || !tripId) {
-      return;
-    }
-    setMemoryCoverLocalUri(null);
-    updateTripMemoryPlaces.mutate(
-      {
-        memoryId: memory.id,
-        tripId,
-        cover_photo_url: null,
-      },
-      {
-        onError: (e) => Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('errorSave'))),
-      },
-    );
-  }, [memory, tripId, updateTripMemoryPlaces, tm]);
-
   const onPublishToCommunity = useCallback(() => {
     if (!trip || !memory || !tripId) {
       return;
     }
-    const placeIdsUniq = [...new Set(itineraryPlaces.map((p) => p.placeId))];
+    const placeIdsUniq = [
+      ...new Set(
+        itineraryPlaces.map((p) => p.placeId).filter((id): id is string => id != null && id.length > 0),
+      ),
+    ];
     if (placeIdsUniq.length === 0) {
       Alert.alert(tm('errorTitle'), tm('communityPlacesRequired'));
       return;
@@ -527,7 +462,7 @@ export default function FinishTripScreen() {
         tip: publishTip,
         tags: publishTags,
         travelStyle: publishTravelStyle,
-        coverPhotoUrl: memory.cover_photo_url,
+        coverPhotoUrl: destinationHeroUrl?.trim() || memory.cover_photo_url,
       },
       {
         onSuccess: () => {
@@ -553,6 +488,7 @@ export default function FinishTripScreen() {
     communityRoute?.id,
     router,
     tm,
+    destinationHeroUrl,
   ]);
 
   const buildPayload = () => ({
@@ -570,8 +506,9 @@ export default function FinishTripScreen() {
     createMemory: explorer && memoryOn,
     explorer,
     mood,
-    coverPlaceId: coverLocalUri ? null : coverPlaceId,
-    coverLocalUri,
+    coverPlaceId: null,
+    coverLocalUri: null,
+    favoritePlaceId,
     placesVisited,
     totalSpentCents,
     travelersCount,
@@ -621,6 +558,7 @@ export default function FinishTripScreen() {
         mood: 'good',
         coverPlaceId: null,
         coverLocalUri: null,
+        favoritePlaceId: null,
         placesVisited,
         totalSpentCents,
         travelersCount,
@@ -630,41 +568,6 @@ export default function FinishTripScreen() {
         onError: (e) => Alert.alert(tt('finishErrorTitle'), formatErrorMessage(e, tt('errorUpdateFailed'))),
       },
     );
-  };
-
-  const openAdd = () => {
-    setEditId(null);
-    setDraft('');
-    setModalOpen(true);
-  };
-
-  const openEdit = (id: string, content: string) => {
-    setEditId(id);
-    setDraft(content);
-    setModalOpen(true);
-  };
-
-  const saveJournal = () => {
-    if (!memory || !draft.trim()) {
-      return;
-    }
-    if (editId) {
-      updJ.mutate(
-        { id: editId, memoryId: memory.id, content: draft },
-        {
-          onSuccess: () => setModalOpen(false),
-          onError: (e) => Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('errorSave'))),
-        },
-      );
-    } else {
-      addJ.mutate(
-        { memoryId: memory.id, content: draft },
-        {
-          onSuccess: () => setModalOpen(false),
-          onError: (e) => Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('errorSave'))),
-        },
-      );
-    }
   };
 
   const handleShareFormat = async (fmt: ShareFormat) => {
@@ -746,29 +649,6 @@ export default function FinishTripScreen() {
   const cardBg = '#FFFFFF';
   const screenBg = '#F3F4F6';
 
-  const tipCards: { title: string; body: string }[] = [];
-  if (isCompleted && memory) {
-    const commTip = publishTip.trim() || communityRoute?.tip?.trim() || '';
-    if (commTip) {
-      tipCards.push({ title: tc('bestTip'), body: commTip });
-    }
-    for (const j of journal) {
-      if (tipCards.length >= 3) {
-        break;
-      }
-      const body = j.content?.trim();
-      if (body) {
-        tipCards.push({ title: tm('journalTitle'), body });
-      }
-    }
-    while (tipCards.length < 3) {
-      tipCards.push({
-        title: tt('completeTipsTitle'),
-        body: tt('completeTipPlaceholder'),
-      });
-    }
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: screenBg }}>
       <View
@@ -801,6 +681,7 @@ export default function FinishTripScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
       >
         <View style={{ position: 'relative' }}>
           {heroImageSource ? (
@@ -829,106 +710,8 @@ export default function FinishTripScreen() {
             <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', textAlign: 'center' }} numberOfLines={2}>
               {heroTitle}
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, textAlign: 'center', marginTop: 6 }}>{heroDateRange}</Text>
           </LinearGradient>
         </View>
-
-        {isOwner ? (
-          <View
-            style={{
-              marginTop: -28,
-              marginHorizontal: 16,
-              backgroundColor: cardBg,
-              borderRadius: 16,
-              padding: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.06,
-              shadowRadius: 8,
-              elevation: 3,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <Ionicons name="camera" size={20} color={colors.primarySolid} style={{ marginRight: 8 }} />
-              <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{tt('completeCoverTitle')}</Text>
-            </View>
-            <Text style={{ fontSize: 13, color: colors.inactive, marginBottom: 12 }}>{tt('completeCoverHint')}</Text>
-            <Pressable
-              onPress={() => void (isActiveFinish ? pickImageActive() : pickMemoryCoverPhoto())}
-              disabled={!isActiveFinish && coverUploadBusy}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderStyle: 'dashed',
-                borderRadius: 12,
-                paddingVertical: 28,
-                alignItems: 'center',
-                backgroundColor: '#FAFAFA',
-              }}
-            >
-              {isCompleted && coverUploadBusy ? (
-                <ActivityIndicator color={colors.primarySolid} />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload-outline" size={32} color={colors.inactive} />
-                  <Text style={{ marginTop: 8, fontWeight: '700', color: colors.text }}>{tt('completeCoverTap')}</Text>
-                  <Text style={{ marginTop: 4, fontSize: 12, color: colors.inactive }}>{tt('completeCoverFormats')}</Text>
-                </>
-              )}
-            </Pressable>
-            {isActiveFinish && (coverLocalUri ? (
-              <Image source={{ uri: coverLocalUri }} style={{ width: '100%', height: 140, borderRadius: 12, marginTop: 12 }} contentFit="cover" />
-            ) : null)}
-            {isCompleted && memory?.cover_photo_url?.trim() ? (
-              <Pressable onPress={clearMemoryCoverPhoto} style={{ marginTop: 10, alignSelf: 'flex-start' }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.primary }}>{tt('communityCoverRemove')}</Text>
-              </Pressable>
-            ) : null}
-
-            {isActiveFinish ? (
-              <>
-                <Text style={{ fontSize: 13, color: colors.inactive, marginTop: 14, marginBottom: 8 }}>{tt('completeOrPickPlace')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {placesForCount.map((p: ItineraryPlaceVm) => {
-                    const ref = firstPhotoReference(p.photos);
-                    const src = getPlacePhotoSource(ref, session?.access_token ?? null);
-                    const selected = coverPlaceId === p.placeId;
-                    return (
-                      <Pressable
-                        key={p.placeId}
-                        onPress={() => {
-                          setCoverPlaceId(p.placeId);
-                          setCoverLocalUri(null);
-                        }}
-                        style={{ marginRight: 10, width: 88 }}
-                      >
-                        <View
-                          style={{
-                            borderRadius: 12,
-                            overflow: 'hidden',
-                            borderWidth: 2,
-                            borderColor: selected ? colors.primarySolid : 'transparent',
-                          }}
-                        >
-                          {src ? (
-                            <Image source={src} style={{ width: 88, height: 64 }} contentFit="cover" />
-                          ) : (
-                            <View style={{ width: 88, height: 64, backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' }}>
-                              <Ionicons name="image-outline" size={22} color={colors.inactive} />
-                            </View>
-                          )}
-                        </View>
-                        <Text numberOfLines={2} style={{ fontSize: 11, marginTop: 4, color: colors.text }}>
-                          {p.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </>
-            ) : null}
-          </View>
-        ) : null}
 
         <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 12 }}>{tt('completeSummaryTitle')}</Text>
@@ -982,26 +765,6 @@ export default function FinishTripScreen() {
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{tt('completeDatesTitle')}</Text>
-          <View style={{ backgroundColor: cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 4 }}>{tt('completeDateStart')}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, backgroundColor: '#F9FAFB' }}>
-                <Text style={{ flex: 1, fontSize: 15, color: colors.text }}>{formatYmdDisplay(trip.start_date, locale)}</Text>
-                <Ionicons name="calendar-outline" size={18} color={colors.inactive} />
-              </View>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 4 }}>{tt('completeDateEnd')}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, backgroundColor: '#F9FAFB' }}>
-                <Text style={{ flex: 1, fontSize: 15, color: colors.text }}>{formatYmdDisplay(trip.end_date, locale)}</Text>
-                <Ionicons name="calendar-outline" size={18} color={colors.inactive} />
-              </View>
-            </View>
-          </View>
-        </View>
-
         <View style={{ paddingHorizontal: 16, marginTop: 22 }}>
           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 12 }}>{tt('completeInsightsTitle')}</Text>
           <View style={{ gap: 10 }}>
@@ -1019,19 +782,86 @@ export default function FinishTripScreen() {
                 ) : null}
               </View>
             </View>
-            <View style={{ backgroundColor: cardBg, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <Ionicons name="location-outline" size={22} color={colors.primarySolid} />
+            <View style={{ backgroundColor: cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                  <Ionicons name="location-outline" size={22} color={colors.primarySolid} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, color: colors.inactive }}>{tt('completeInsightFavorite')}</Text>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>{displayFavorite?.name ?? '—'}</Text>
+                  {displayFavorite ? (
+                    <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 2 }}>
+                      {tt('completeInsightVisitedCount', { count: displayFavorite.visits })}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, color: colors.inactive }}>{tt('completeInsightFavorite')}</Text>
-                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>{favoriteSpot?.name ?? '—'}</Text>
-                {favoriteSpot ? (
-                  <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 2 }}>
-                    {tt('completeInsightVisitedCount', { count: favoriteSpot.visits })}
-                  </Text>
-                ) : null}
-              </View>
+              {canPickFavoriteSpot ? (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={{ fontSize: 13, color: colors.inactive, marginBottom: 8 }}>{tt('completeFavoriteHint')}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    <Pressable
+                      onPress={() => applyFavoritePlaceSelection(null)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: favoritePlaceId === null }}
+                      accessibilityLabel={tt('completeFavoriteSuggested')}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 20,
+                        backgroundColor: favoritePlaceId === null ? '#E0E7FF' : '#F3F4F6',
+                        borderWidth: 1,
+                        borderColor: favoritePlaceId === null ? '#6366F1' : colors.border,
+                        maxWidth: '100%',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '600',
+                          color: favoritePlaceId === null ? '#3730A3' : colors.text,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {tt('completeFavoriteSuggested')}
+                      </Text>
+                    </Pressable>
+                    {uniquePlacesForFavorite.map((pl) => {
+                      const selected = favoritePlaceId === pl.placeId;
+                      return (
+                        <Pressable
+                          key={pl.placeId}
+                          onPress={() => applyFavoritePlaceSelection(pl.placeId)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={pl.name}
+                          style={{
+                            paddingVertical: 8,
+                            paddingHorizontal: 12,
+                            borderRadius: 20,
+                            backgroundColor: selected ? '#E0E7FF' : '#F3F4F6',
+                            borderWidth: 1,
+                            borderColor: selected ? '#6366F1' : colors.border,
+                            maxWidth: '100%',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: '600',
+                              color: selected ? '#3730A3' : colors.text,
+                            }}
+                            numberOfLines={2}
+                          >
+                            {pl.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
             </View>
             <View style={{ backgroundColor: cardBg, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
               <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
@@ -1045,33 +875,6 @@ export default function FinishTripScreen() {
             </View>
           </View>
         </View>
-
-        {isCompleted ? (
-          <View style={{ paddingHorizontal: 16, marginTop: 22 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              <Ionicons name="bulb-outline" size={22} color={colors.primarySolid} style={{ marginRight: 8 }} />
-              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{tt('completeTipsTitle')}</Text>
-            </View>
-            {tipCards.slice(0, 3).map((card, i) => (
-              <View
-                key={`${card.title}-${i}`}
-                style={{
-                  backgroundColor: cardBg,
-                  borderRadius: 12,
-                  padding: 14,
-                  marginBottom: 10,
-                  borderLeftWidth: 3,
-                  borderLeftColor: colors.primarySolid,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 6 }}>{card.title}</Text>
-                <Text style={{ fontSize: 14, color: colors.inactive, lineHeight: 20 }}>{card.body}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
 
         {isCompleted && memory ? (
           <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
@@ -1093,8 +896,9 @@ export default function FinishTripScreen() {
                 <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 6 }}>{tt('finishBestTip')}</Text>
                 <TextInput
                   value={tip}
-                  onChangeText={(x) => setTip(x.slice(0, 280))}
+                  onChangeText={(x) => setTip(x.slice(0, 600))}
                   multiline
+                  maxLength={600}
                   placeholder={tt('finishTipPlaceholder')}
                   placeholderTextColor={colors.inactive}
                   style={{
@@ -1110,7 +914,7 @@ export default function FinishTripScreen() {
                     backgroundColor: cardBg,
                   }}
                 />
-                <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 14 }}>{tip.length}/280</Text>
+                <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 14 }}>{tip.length}/600</Text>
 
                 <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{tt('finishTags')}</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
@@ -1220,8 +1024,9 @@ export default function FinishTripScreen() {
             <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 6 }}>{tm('communityTipLabel')}</Text>
             <TextInput
               value={publishTip}
-              onChangeText={(x) => setPublishTip(x.slice(0, 280))}
+              onChangeText={(x) => setPublishTip(x.slice(0, 600))}
               multiline
+              maxLength={600}
               placeholder={tm('communityTipPlaceholder')}
               placeholderTextColor={colors.inactive}
               style={{
@@ -1237,7 +1042,7 @@ export default function FinishTripScreen() {
                 backgroundColor: cardBg,
               }}
             />
-            <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 14 }}>{publishTip.length}/280</Text>
+            <Text style={{ fontSize: 12, color: colors.inactive, marginBottom: 14 }}>{publishTip.length}/600</Text>
 
             <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{tm('communityTagsLabel')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
@@ -1356,56 +1161,6 @@ export default function FinishTripScreen() {
                     <Text style={{ color: colors.onPrimary, fontWeight: '800', fontSize: 16 }}>{tm('shareCard')}</Text>
                   )}
                 </Pressable>
-
-                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, marginBottom: 10 }}>{tm('journalTitle')}</Text>
-                <Pressable
-                  onPress={openAdd}
-                  style={{
-                    alignSelf: 'flex-start',
-                    paddingVertical: 10,
-                    paddingHorizontal: 14,
-                    backgroundColor: '#E0E7FF',
-                    borderRadius: 12,
-                    marginBottom: 16,
-                  }}
-                >
-                  <Text style={{ fontWeight: '700', color: '#3730A3' }}>{tm('addEntry')}</Text>
-                </Pressable>
-
-                {journal.map((row) => (
-                  <View
-                    key={row.id}
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      backgroundColor: cardBg,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      marginBottom: 10,
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, color: colors.text, lineHeight: 22 }}>{row.content}</Text>
-                    {row.user_id === userId ? (
-                      <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
-                        <Pressable onPress={() => openEdit(row.id, row.content)}>
-                          <Text style={{ color: colors.primarySolid, fontWeight: '700' }}>{tm('edit')}</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() =>
-                            delJ.mutate(
-                              { id: row.id, memoryId: memory.id },
-                              {
-                                onError: (e) => Alert.alert(tm('errorTitle'), formatErrorMessage(e, tm('errorSave'))),
-                              },
-                            )
-                          }
-                        >
-                          <Text style={{ color: '#DC2626', fontWeight: '700' }}>{tm('delete')}</Text>
-                        </Pressable>
-                      </View>
-                    ) : null}
-                  </View>
-                ))}
               </View>
             </PlanGate>
           </>
@@ -1450,39 +1205,6 @@ export default function FinishTripScreen() {
           <Text style={{ color: colors.onPrimary, fontSize: 17, fontWeight: '700' }}>{tt('completeBackToTrips')}</Text>
         </Pressable>
       </ScrollView>
-
-      <Modal visible={modalOpen} transparent animationType="fade" onRequestClose={() => setModalOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 }} onPress={() => setModalOpen(false)}>
-          <Pressable onPress={(e) => e.stopPropagation()} style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18 }}>
-            <Text style={{ fontSize: 17, fontWeight: '800', marginBottom: 12 }}>{editId ? tm('editEntry') : tm('newEntry')}</Text>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              multiline
-              placeholder={tm('entryPlaceholder')}
-              style={{
-                minHeight: 100,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 12,
-                padding: 12,
-                fontSize: 16,
-                color: colors.text,
-                textAlignVertical: 'top',
-                marginBottom: 16,
-              }}
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
-              <Pressable onPress={() => setModalOpen(false)}>
-                <Text style={{ color: colors.inactive, fontWeight: '700' }}>{tm('cancel')}</Text>
-              </Pressable>
-              <Pressable onPress={saveJournal}>
-                <Text style={{ color: colors.primarySolid, fontWeight: '800' }}>{tm('save')}</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       <ShareFormatSheet
         visible={shareSheetOpen}

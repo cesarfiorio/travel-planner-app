@@ -49,19 +49,21 @@ export function mostActiveDayInfo(
 }
 
 /** Place that appears most often in the itinerary (visited rows preferred). */
-export function favoriteSpotInfo(places: ItineraryPlaceVm[]): { name: string; visits: number } | null {
+export function favoriteSpotInfo(places: ItineraryPlaceVm[]): { placeId: string; name: string; visits: number } | null {
   const visited = places.filter((p) => p.status === 'visited');
   const usePlaces = visited.length > 0 ? visited : places;
-  if (usePlaces.length === 0) {
+  const withPlace = usePlaces.filter((p) => p.placeId != null);
+  if (withPlace.length === 0) {
     return null;
   }
   const byId = new Map<string, { name: string; n: number }>();
-  for (const p of usePlaces) {
-    const prev = byId.get(p.placeId);
+  for (const p of withPlace) {
+    const pid = p.placeId as string;
+    const prev = byId.get(pid);
     if (prev) {
       prev.n += 1;
     } else {
-      byId.set(p.placeId, { name: p.name, n: 1 });
+      byId.set(pid, { name: p.name, n: 1 });
     }
   }
   let bestId = '';
@@ -77,10 +79,10 @@ export function favoriteSpotInfo(places: ItineraryPlaceVm[]): { name: string; vi
       bestId = id;
     }
   }
-  if (bestN < 1) {
+  if (bestN < 1 || !bestId) {
     return null;
   }
-  return { name: bestName, visits: bestN };
+  return { placeId: bestId, name: bestName, visits: bestN };
 }
 
 export function tripDurationDaysFromStrings(start: string | null, end: string | null): number | null {

@@ -12,6 +12,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName="profile"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: TAB_ACTIVE,

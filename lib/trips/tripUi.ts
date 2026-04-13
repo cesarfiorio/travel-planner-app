@@ -38,6 +38,30 @@ export function deriveTripUiStatus(trip: {
   return 'active';
 }
 
+/**
+ * Local calendar: trip end date has arrived or passed (today >= end), but DB row is not completed yet.
+ * Includes the last day and any day after — matches when {@link deriveTripUiStatus} is `active` or `completed`.
+ */
+export function isTripOnOrAfterEndDateLocal(trip: {
+  start_date: string | null;
+  end_date: string | null;
+  status: string;
+}): boolean {
+  if (trip.status === 'completed' || trip.status === 'cancelled') {
+    return false;
+  }
+  const end = parseLocalDate(trip.end_date);
+  if (!end) {
+    return false;
+  }
+  const today = startOfDay(new Date());
+  const start = parseLocalDate(trip.start_date);
+  if (start && today < startOfDay(start)) {
+    return false;
+  }
+  return today.getTime() >= startOfDay(end).getTime();
+}
+
 /** Both start and end dates are strictly before today (local calendar). */
 export function isFullyPastTripDates(start: Date, end: Date): boolean {
   const today = startOfDay(new Date());

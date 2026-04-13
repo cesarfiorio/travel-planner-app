@@ -4,10 +4,12 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
+import { ProfileTripOverflowMenu } from './ProfileTripOverflowMenu';
+
 import { formatItineraryDestinationSubtitle } from '../lib/itinerary/itinerarySubtitle';
 import type { TripWithDetails } from '../lib/hooks/useTrips';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
-import { deriveTripUiStatus, primaryTripEntryPath } from '../lib/trips/tripUi';
+import { deriveTripUiStatus, isTripOnOrAfterEndDateLocal, primaryTripEntryPath } from '../lib/trips/tripUi';
 import { formatTripHeroDateRange } from '../lib/trips/tripDateFormat';
 
 const ORANGE = '#F05A1A';
@@ -34,9 +36,17 @@ type Props = {
   locale: string;
   /** When true (e.g. profile tab), CTA only sets the active trip for the tab bar—no trip hub navigation. */
   selectActiveOnly?: boolean;
+  showProfileOverflow?: boolean;
+  currentUserId?: string;
 };
 
-export function FeaturedActiveTripCard({ trip, locale, selectActiveOnly = false }: Props) {
+export function FeaturedActiveTripCard({
+  trip,
+  locale,
+  selectActiveOnly = false,
+  showProfileOverflow = false,
+  currentUserId = '',
+}: Props) {
   const { t } = useTranslation('trips');
   const router = useRouter();
   const setActiveTrip = useAppStore((s) => s.setActiveTrip);
@@ -54,14 +64,28 @@ export function FeaturedActiveTripCard({ trip, locale, selectActiveOnly = false 
   const destLine = formatItineraryDestinationSubtitle(trip.destination_label, trip.name);
   const dateLine = formatTripHeroDateRange(trip.start_date, trip.end_date, locale);
 
+  /** Profile "Your trips": on/after end date (last day or later), CTA completes and opens recap. */
+  const showCompleteInsteadOfSwitch = selectActiveOnly && isTripOnOrAfterEndDateLocal(trip);
+
   const openDetail = () => {
     setActiveTrip(tripRowToSnapshot(trip));
     if (!selectActiveOnly) {
       router.push(primaryTripEntryPath(trip));
+      return;
+    }
+    if (showCompleteInsteadOfSwitch) {
+      router.push(`/trip/${trip.id}/finish`);
     }
   };
 
-  const ctaLabel = selectActiveOnly ? t('switchTripTitle') : t('viewDetails');
+  const ctaLabel = selectActiveOnly
+    ? showCompleteInsteadOfSwitch
+      ? t('featuredCompleteTripCta')
+      : t('switchTripTitle')
+    : t('viewDetails');
+  const overflowLabel = trip.name?.trim() || trip.destination_label?.trim() || t('detailTitle');
+  const showOverflowTrigger =
+    showProfileOverflow && Boolean(currentUserId) && trip.created_by === currentUserId;
 
   return (
     <View
@@ -79,66 +103,82 @@ export function FeaturedActiveTripCard({ trip, locale, selectActiveOnly = false 
       }}
     >
       <View style={{ borderRadius: CARD_RADIUS, overflow: 'hidden' }}>
-      <View style={{ height: HERO_H, width: '100%', backgroundColor: '#E5E7EB' }}>
-        <Image source={{ uri: heroUrlForTripId(trip.id) }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-        <LinearGradient
-          colors={['rgba(0,0,0,0.2)', 'transparent', 'rgba(0,0,0,0.65)']}
-          locations={[0, 0.45, 1]}
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            top: 14,
-            left: 14,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            borderRadius: 20,
-            backgroundColor: 'rgba(255,255,255,0.95)',
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>{badgeLabel}</Text>
-        </View>
-        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
-          {destLine ? (
-            <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={2}>
-              {destLine}
-            </Text>
-          ) : (
-            <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={2}>
-              {trip.name?.trim() || t('detailTitle')}
-            </Text>
-          )}
-          {dateLine ? (
-            <Text style={{ fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.92)', marginTop: 6 }}>{dateLine}</Text>
-          ) : null}
-        </View>
-      </View>
-      <View style={{ backgroundColor: '#F05A1A', padding: 14 }}>
         <Pressable
           onPress={openDetail}
-          style={({ pressed }) => ({
-            width: '100%',
-            paddingVertical: 14,
-            paddingHorizontal: 20,
-            borderRadius: 999,
-            backgroundColor: ORANGE,
-            opacity: pressed ? 0.92 : 1,
-          })}
+          style={({ pressed }) => ({ opacity: pressed ? 0.96 : 1 })}
           accessibilityRole="button"
-          accessibilityLabel={ctaLabel}
+          accessibilityLabel={`${overflowLabel}. ${ctaLabel}`}
+          accessibilityHint={
+            showCompleteInsteadOfSwitch ? t('featuredCompleteTripA11y') : undefined
+          }
         >
-          <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' }}>
-            {ctaLabel}
-          </Text>
+          <View style={{ height: HERO_H, width: '100%', backgroundColor: '#E5E7EB' }}>
+            <Image source={{ uri: heroUrlForTripId(trip.id) }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+            <LinearGradient
+              colors={['rgba(0,0,0,0.2)', 'transparent', 'rgba(0,0,0,0.65)']}
+              locations={[0, 0.45, 1]}
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                top: 14,
+                left: 14,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.95)',
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>{badgeLabel}</Text>
+            </View>
+            <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
+              {destLine ? (
+                <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={2}>
+                  {destLine}
+                </Text>
+              ) : (
+                <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={2}>
+                  {trip.name?.trim() || t('detailTitle')}
+                </Text>
+              )}
+              {dateLine ? (
+                <Text style={{ fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.92)', marginTop: 6 }}>{dateLine}</Text>
+              ) : null}
+            </View>
+          </View>
+          <View style={{ backgroundColor: '#F05A1A', padding: 14 }}>
+            <View
+              style={{
+                width: '100%',
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: 999,
+                backgroundColor: ORANGE,
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' }}>
+                {ctaLabel}
+              </Text>
+            </View>
+          </View>
         </Pressable>
-      </View>
+        {showOverflowTrigger ? (
+          <View style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }} pointerEvents="box-none">
+            <ProfileTripOverflowMenu
+              trip={trip}
+              currentUserId={currentUserId}
+              variant="onPhoto"
+              tripLabel={overflowLabel}
+            />
+          </View>
+        ) : null}
       </View>
     </View>
   );

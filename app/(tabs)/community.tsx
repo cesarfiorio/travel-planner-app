@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -8,6 +9,7 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,6 +67,13 @@ export default function CommunityScreen() {
   const { user } = useAuth();
   const userId = user?.id ?? '';
   const [pill, setPill] = useState<PillId>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), 320);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
 
   const { travelStyle, tagContains } = useMemo(() => {
     switch (pill) {
@@ -82,7 +91,7 @@ export default function CommunityScreen() {
   }, [pill]);
 
   const { data, isPending, isError, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCommunityFeed('', travelStyle, tagContains);
+    useCommunityFeed(debouncedSearch, travelStyle, tagContains);
 
   const toggleLike = useToggleRouteLike();
   const toggleSave = useToggleRouteSave();
@@ -154,32 +163,53 @@ export default function CommunityScreen() {
           paddingBottom: 2,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 24, fontWeight: FONT.bold, color: COLORS.textPrimary, letterSpacing: -0.3 }}>
-              {t('screenTitle')}
-            </Text>
-            <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary, marginTop: 1, lineHeight: 16 }}>
-              {t('screenSubtitle')}
-            </Text>
-          </View>
-          {userId ? (
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 24, fontWeight: FONT.bold, color: COLORS.textPrimary, letterSpacing: -0.3 }}>
+            {t('screenTitle')}
+          </Text>
+          <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary, marginTop: 1, lineHeight: 16 }}>
+            {t('screenSubtitle')}
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: 14,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderRadius: 14,
+            backgroundColor: COLORS.cardBg,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          <Ionicons name="search-outline" size={20} color={COLORS.textSecondary} style={{ marginRight: 10 }} />
+          <TextInput
+            value={searchInput}
+            onChangeText={setSearchInput}
+            placeholder={t('searchPlaceholder')}
+            placeholderTextColor={COLORS.textTertiary}
+            style={{
+              flex: 1,
+              fontSize: FONT.base,
+              color: COLORS.textPrimary,
+              paddingVertical: 0,
+            }}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            accessibilityLabel={t('searchA11y')}
+          />
+          {searchInput.length > 0 ? (
             <Pressable
-              onPress={() => router.push('/trip/new')}
-              style={{
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: 12,
-                backgroundColor: COLORS.cardBg,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-              }}
+              onPress={() => setSearchInput('')}
+              hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={t('sharePastTrip')}
+              accessibilityLabel={t('searchClearA11y')}
             >
-              <Text style={{ fontSize: FONT.sm, fontWeight: FONT.semibold, color: COLORS.primary }}>
-                {t('sharePastTrip')}
-              </Text>
+              <Ionicons name="close-circle" size={22} color={COLORS.textTertiary} />
             </Pressable>
           ) : null}
         </View>
@@ -224,9 +254,31 @@ export default function CommunityScreen() {
           onEndReached={onEndReached}
           onEndReachedThreshold={0.35}
           ListFooterComponent={
-            isFetchingNextPage ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={COLORS.primary} />
-            ) : null
+            <View style={{ paddingTop: 8, paddingBottom: Math.max(insets.bottom, 12) + 8 }}>
+              {isFetchingNextPage ? (
+                <ActivityIndicator style={{ marginVertical: 16 }} color={COLORS.primary} />
+              ) : null}
+              {userId ? (
+                <Pressable
+                  onPress={() => router.push('/trip/new')}
+                  style={{
+                    marginHorizontal: 20,
+                    marginTop: isFetchingNextPage ? 8 : 4,
+                    paddingVertical: 16,
+                    paddingHorizontal: 20,
+                    borderRadius: 14,
+                    backgroundColor: COLORS.primary,
+                    alignItems: 'center',
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('sharePastTrip')}
+                >
+                  <Text style={{ fontSize: FONT.md, fontWeight: FONT.bold, color: COLORS.textOnPrimary }}>
+                    {t('sharePastTrip')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           }
           ListEmptyComponent={
             <Text style={{ textAlign: 'center', color: COLORS.textSecondary, paddingVertical: 4, paddingHorizontal: 2 }}>
@@ -237,7 +289,7 @@ export default function CommunityScreen() {
           contentContainerStyle={{
             flexGrow: 1,
             paddingTop: 0,
-            paddingBottom: insets.bottom + 24,
+            paddingBottom: 8,
           }}
         />
       )}

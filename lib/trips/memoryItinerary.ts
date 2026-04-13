@@ -5,6 +5,7 @@ import type { Json } from '../supabase/types';
 export function itinerarySnapshotFromPlaces(places: ItineraryPlaceVm[]): Json {
   return places.map((p) => ({
     placeId: p.placeId,
+    isCustom: p.isCustom,
     name: p.name,
     dayNumber: p.dayNumber,
     orderIndex: p.orderIndex,
