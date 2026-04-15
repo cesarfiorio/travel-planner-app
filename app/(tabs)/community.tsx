@@ -19,16 +19,17 @@ import { COLORS, FONT } from '../../constants/theme';
 import { useAuth } from '../../lib/hooks/useAuth';
 import {
   useCommunityFeed,
+  useCommunityLikedFeed,
   useToggleRouteLike,
-  useToggleRouteSave,
 } from '../../lib/hooks/useCommunityRoutes';
 
 const SCREEN_BG = COLORS.cardBg;
 
-type PillId = 'all' | 'solo' | 'couple' | 'family' | 'friends';
+type PillId = 'all' | 'liked' | 'solo' | 'couple' | 'family' | 'friends';
 
 const PILLS: { id: PillId; labelKey: string }[] = [
   { id: 'all', labelKey: 'filterPillAll' },
+  { id: 'liked', labelKey: 'filterPillLiked' },
   { id: 'solo', labelKey: 'style_solo' },
   { id: 'couple', labelKey: 'style_couple' },
   { id: 'family', labelKey: 'style_family' },
@@ -75,6 +76,8 @@ export default function CommunityScreen() {
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
+  const isLikedPill = pill === 'liked';
+
   const { travelStyle, tagContains } = useMemo(() => {
     switch (pill) {
       case 'solo':
@@ -90,16 +93,28 @@ export default function CommunityScreen() {
     }
   }, [pill]);
 
-  const { data, isPending, isError, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCommunityFeed(debouncedSearch, travelStyle, tagContains);
+  const mainFeed = useCommunityFeed(debouncedSearch, travelStyle, tagContains, { enabled: !isLikedPill });
+  const likedFeed = useCommunityLikedFeed(debouncedSearch, { enabled: isLikedPill });
 
   const toggleLike = useToggleRouteLike();
-  const toggleSave = useToggleRouteSave();
 
   const likePending = usePerRoutePending();
-  const savePending = usePerRoutePending();
 
-  const routes = useMemo(() => data?.pages.flat() ?? [], [data]);
+  const routes = useMemo(
+    () =>
+      isLikedPill
+        ? (likedFeed.data?.pages.flatMap((p) => p.items) ?? [])
+        : (mainFeed.data?.pages.flat() ?? []),
+    [isLikedPill, likedFeed.data, mainFeed.data],
+  );
+
+  const isPending = isLikedPill ? likedFeed.isPending : mainFeed.isPending;
+  const isError = isLikedPill ? likedFeed.isError : mainFeed.isError;
+  const refetch = isLikedPill ? likedFeed.refetch : mainFeed.refetch;
+  const isRefetching = isLikedPill ? likedFeed.isRefetching : mainFeed.isRefetching;
+  const fetchNextPage = isLikedPill ? likedFeed.fetchNextPage : mainFeed.fetchNextPage;
+  const hasNextPage = isLikedPill ? likedFeed.hasNextPage : mainFeed.hasNextPage;
+  const isFetchingNextPage = isLikedPill ? likedFeed.isFetchingNextPage : mainFeed.isFetchingNextPage;
 
   const onEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -233,22 +248,14 @@ export default function CommunityScreen() {
               route={item}
               onToggleHeart={() => {
                 const routeId = item.id;
+                if (likePending.isBusy(routeId)) return;
                 likePending.begin(routeId);
                 toggleLike.mutate(
                   { routeId, liked: item.likedByMe },
                   { onSettled: () => likePending.end(routeId) },
                 );
               }}
-              onToggleSave={() => {
-                const routeId = item.id;
-                savePending.begin(routeId);
-                toggleSave.mutate(
-                  { routeId, saved: item.savedByMe },
-                  { onSettled: () => savePending.end(routeId) },
-                );
-              }}
               heartBusy={likePending.isBusy(item.id)}
-              saveBusy={savePending.isBusy(item.id)}
             />
           )}
           onEndReached={onEndReached}
@@ -282,7 +289,7 @@ export default function CommunityScreen() {
           }
           ListEmptyComponent={
             <Text style={{ textAlign: 'center', color: COLORS.textSecondary, paddingVertical: 4, paddingHorizontal: 2 }}>
-              {t('emptyFeed')}
+              {isLikedPill ? t('emptyLikedFeed') : t('emptyFeed')}
             </Text>
           }
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}

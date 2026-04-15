@@ -6,6 +6,7 @@ import type { Tables } from '../supabase/types';
 import { useAuth } from './useAuth';
 
 export const communityFeedQueryKey = ['communityFeed'] as const;
+export const communityLikedFeedQueryKey = ['communityLikedFeed'] as const;
 const PAGE = 20;
 
 function scoreFromRouteRow(r: { likes_count: number; published_at: string | null }): number {
@@ -31,6 +32,8 @@ export type CommunityRouteVm = RankedRouteRow & {
   adoptedTripId?: string | null;
   creatorBio?: string | null;
 };
+
+export type CommunityLikedFeedPage = { items: CommunityRouteVm[]; nextOffset: number | undefined };
 
 async function fetchProfilesMap(
   ids: string[],
@@ -60,13 +63,15 @@ export function useCommunityFeed(
   travelStyle: string | null,
   /** When set, filter rows whose `tags` array contains this value (e.g. `adventure`). */
   tagContains: string | null = null,
+  options: { enabled?: boolean } = {},
 ) {
   const { user } = useAuth();
   const uid = user?.id ?? '';
+  const feedEnabled = options.enabled !== false;
 
   return useInfiniteQuery({
     queryKey: [...communityFeedQueryKey, search.trim(), travelStyle ?? '', tagContains ?? '', uid] as const,
-    enabled: Boolean(uid && hasSupabaseEnv && supabase),
+    enabled: Boolean(uid && hasSupabaseEnv && supabase && feedEnabled),
     initialPageParam: 0,
     queryFn: async ({ pageParam }: { pageParam: number }): Promise<CommunityRouteVm[]> => {
       if (!supabase) {
@@ -132,6 +137,89 @@ export function useCommunityFeed(
       }
       return lastPageParam + 1;
     },
+  });
+}
+
+/** Routes the current user liked, newest like first (paginated). */
+export function useCommunityLikedFeed(search: string, options: { enabled?: boolean } = {}) {
+  const { user } = useAuth();
+  const uid = user?.id ?? '';
+  const listEnabled = options.enabled !== false;
+
+  return useInfiniteQuery({
+    queryKey: [...communityLikedFeedQueryKey, search.trim(), uid] as const,
+    enabled: Boolean(uid && hasSupabaseEnv && supabase && listEnabled),
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }: { pageParam: number }): Promise<CommunityLikedFeedPage> => {
+      if (!supabase) {
+        return { items: [], nextOffset: undefined };
+      }
+      const offset = pageParam;
+      const { data: likeRows, error: likeErr } = await supabase
+        .from('community_route_likes')
+        .select('route_id')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + PAGE);
+      if (likeErr) {
+        throw likeErr;
+      }
+      const rows = likeRows ?? [];
+      const hasMore = rows.length > PAGE;
+      const slice = hasMore ? rows.slice(0, PAGE) : rows;
+      const orderedIds = slice.map((r) => r.route_id).filter(Boolean);
+      if (orderedIds.length === 0) {
+        return { items: [], nextOffset: hasMore ? offset + PAGE : undefined };
+      }
+      const { data: routeRows, error } = await supabase.from('ranked_routes').select('*').in('id', orderedIds);
+      if (error) {
+        throw error;
+      }
+      const byId = new Map((routeRows ?? []).map((r) => [r.id, r as RankedRouteRow]));
+      let list = orderedIds
+        .map((id) => byId.get(id))
+        .filter((r): r is RankedRouteRow => r != null)
+        .filter((r) => r.trip_id != null && String(r.trip_id).trim() !== '');
+
+      const s = search.trim();
+      const safe = s.replace(/[%_,]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (safe) {
+        list = list.filter((r) => {
+          const dest = (r.destination ?? '').toLowerCase();
+          const tit = (r.title ?? '').toLowerCase();
+          return dest.includes(safe) || tit.includes(safe);
+        });
+      }
+
+      const creatorIds = list.map((r) => r.creator_id);
+      const profMap = await fetchProfilesMap(creatorIds);
+      const routeIds = list.map((r) => r.id);
+      let saved = new Set<string>();
+      let used = new Set<string>();
+      if (routeIds.length > 0) {
+        const [savesRes, usedRes] = await Promise.all([
+          supabase.from('route_saves').select('route_id').eq('user_id', uid).in('route_id', routeIds),
+          supabase.from('route_used').select('route_id').eq('user_id', uid).in('route_id', routeIds),
+        ]);
+        saved = new Set((savesRes.data ?? []).map((x) => x.route_id));
+        used = new Set((usedRes.data ?? []).map((x) => x.route_id));
+      }
+      const items = list.map((r) => {
+        const p = profMap.get(r.creator_id);
+        const name = p?.display_name?.trim() || p?.full_name?.trim() || 'Traveler';
+        return {
+          ...r,
+          creatorName: name,
+          creatorAvatar: p?.avatar_url ?? null,
+          creatorBio: p?.bio?.trim() || null,
+          likedByMe: true,
+          savedByMe: saved.has(r.id),
+          usedByMe: used.has(r.id),
+        };
+      });
+      return { items, nextOffset: hasMore ? offset + PAGE : undefined };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextOffset,
   });
 }
 
@@ -337,6 +425,7 @@ export function useToggleRouteLike() {
     },
     onSuccess: (_d, v) => {
       void queryClient.invalidateQueries({ queryKey: communityFeedQueryKey });
+      void queryClient.invalidateQueries({ queryKey: communityLikedFeedQueryKey });
       void queryClient.invalidateQueries({ queryKey: ['communityRoute', v.routeId, uid] });
     },
   });

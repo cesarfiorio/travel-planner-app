@@ -16,9 +16,7 @@ const INNER_PAD = 16;
 type Props = {
   route: CommunityRouteVm;
   onToggleHeart: () => void;
-  onToggleSave: () => void;
   heartBusy: boolean;
-  saveBusy: boolean;
 };
 
 function travelStyleIconName(style: string | null): keyof typeof Ionicons.glyphMap {
@@ -41,9 +39,7 @@ function travelStyleIconName(style: string | null): keyof typeof Ionicons.glyphM
 export function CommunityMvpCard({
   route,
   onToggleHeart,
-  onToggleSave,
   heartBusy,
-  saveBusy,
 }: Props) {
   const { t } = useTranslation('community');
   const router = useRouter();
@@ -127,23 +123,6 @@ export function CommunityMvpCard({
             <Text style={{ fontSize: FONT.sm, color: COLORS.textSecondary }}>{styleLabel}</Text>
           </View>
         </View>
-        <Pressable
-          onPress={() => onToggleSave()}
-          disabled={saveBusy}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel={t('saveA11y')}
-        >
-          {saveBusy ? (
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          ) : (
-            <Ionicons
-              name={route.savedByMe ? 'bookmark' : 'bookmark-outline'}
-              size={24}
-              color={route.savedByMe ? COLORS.primary : COLORS.textTertiary}
-            />
-          )}
-        </Pressable>
       </View>
 
       <View
@@ -231,34 +210,26 @@ export function CommunityMvpCard({
           paddingBottom: INNER_PAD,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
-          <Pressable
-            onPress={onToggleHeart}
-            disabled={heartBusy}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('heartA11y')}
-          >
-            {heartBusy ? (
-              <ActivityIndicator size="small" color={route.likedByMe ? COLORS.danger : COLORS.textSecondary} />
-            ) : (
-              <Ionicons
-                name={route.likedByMe ? 'heart' : 'heart-outline'}
-                size={22}
-                color={route.likedByMe ? COLORS.danger : COLORS.textSecondary}
-              />
-            )}
-            <Text style={{ fontSize: FONT.base, color: COLORS.textSecondary, fontWeight: FONT.semibold }}>
-              {route.likes_count ?? 0}
-            </Text>
-          </Pressable>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="bookmark-outline" size={22} color={COLORS.textSecondary} />
-            <Text style={{ fontSize: FONT.base, color: COLORS.textSecondary, fontWeight: FONT.semibold }}>
-              {route.saves_count ?? 0}
-            </Text>
-          </View>
-        </View>
+        <Pressable
+          onPress={onToggleHeart}
+          disabled={heartBusy}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('heartA11y')}
+        >
+          {heartBusy ? (
+            <ActivityIndicator size="small" color={route.likedByMe ? COLORS.danger : COLORS.textSecondary} />
+          ) : (
+            <Ionicons
+              name={route.likedByMe ? 'heart' : 'heart-outline'}
+              size={22}
+              color={route.likedByMe ? COLORS.danger : COLORS.textSecondary}
+            />
+          )}
+          <Text style={{ fontSize: FONT.base, color: COLORS.textSecondary, fontWeight: FONT.semibold }}>
+            {route.likes_count ?? 0}
+          </Text>
+        </Pressable>
         <Pressable
           onPress={() => router.push(`/(stack)/community/${route.id}`)}
           style={{
