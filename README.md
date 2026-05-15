@@ -2,7 +2,8 @@
 
 **RouteFlow** is a cross-platform travel companion built with [Expo](https://expo.dev) and React Native. Plan trips, build itineraries, track expenses, capture memories, and explore places — with auth and cloud sync powered by [Supabase](https://supabase.com).
 
-https://github.com/user-attachments/assets/e393c72d-77b8-4e87-9f9a-68e42ecde577
+
+https://github.com/user-attachments/assets/fcd3804c-3284-4f82-b842-0382e4a426f8
 
 
 ## Features
