@@ -3,8 +3,16 @@ import { useEffect, useState } from 'react';
 
 import { useAuthStore } from '../store/authStore';
 import { hasSupabaseEnv, supabase } from '../supabase';
+import { logger } from '../utils/logger';
 
 let bootstrapPromise: Promise<void> | null = null;
+
+function devAutoAnonymousEnabled(): boolean {
+  return (
+    __DEV__ &&
+    process.env.EXPO_PUBLIC_DEV_AUTO_ANONYMOUS_AUTH === '1'
+  );
+}
 
 async function bootstrapAuth(): Promise<void> {
   await useAuthStore.persist.rehydrate();
@@ -13,14 +21,26 @@ async function bootstrapAuth(): Promise<void> {
     return;
   }
 
+  supabase.auth.onAuthStateChange((_event, nextSession) => {
+    useAuthStore.getState().setSession(nextSession);
+  });
+
   const {
     data: { session: currentSession },
   } = await supabase.auth.getSession();
   useAuthStore.getState().setSession(currentSession);
 
-  supabase.auth.onAuthStateChange((_event, nextSession) => {
-    useAuthStore.getState().setSession(nextSession);
-  });
+  if (devAutoAnonymousEnabled() && !currentSession) {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) {
+      logger.warn('[RouteFlow] DEV_AUTO_ANONYMOUS_AUTH failed (enable Anonymous in Supabase Auth → Providers)', {
+        message: error.message,
+      });
+    } else if (data.session) {
+      logger.debug('[RouteFlow] Signed in anonymously for local dev (no OAuth).');
+      useAuthStore.getState().setSession(data.session);
+    }
+  }
 }
 
 function ensureAuthBootstrap(): Promise<void> {

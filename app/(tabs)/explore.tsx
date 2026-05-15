@@ -26,6 +26,32 @@ import type { ExploreCategoryFilter } from '../../types/places';
 const SCREEN_BG = '#F3F4F6';
 const ORANGE = '#F05A1A';
 
+function inferCategoryFromSearch(search: string): ExploreCategoryFilter | null {
+  const q = search.trim().toLowerCase();
+  if (!q) {
+    return null;
+  }
+  if (/\b(restaurant|restaurants|food|eat|dinner|lunch|cafe|coffee)\b/.test(q)) {
+    return 'restaurants';
+  }
+  if (/\b(hotel|hotels|hostel|hostels|stay|accommodation|lodging)\b/.test(q)) {
+    return 'accommodation';
+  }
+  if (/\b(bar|bars|club|clubs|nightlife|drink|drinks)\b/.test(q)) {
+    return 'nightlife';
+  }
+  if (/\b(park|parks|beach|hike|hiking|outdoor|nature)\b/.test(q)) {
+    return 'outdoor';
+  }
+  if (/\b(shop|shops|shopping|mall|market|markets)\b/.test(q)) {
+    return 'shopping';
+  }
+  if (/\b(attraction|attractions|museum|museums|monument|landmark|things to do)\b/.test(q)) {
+    return 'attractions';
+  }
+  return null;
+}
+
 export default function ExplorePlacesScreen() {
   const { t } = useTranslation(['explore', 'common', 'trips']);
   const insets = useSafeAreaInsets();
@@ -35,6 +61,9 @@ export default function ExplorePlacesScreen() {
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState<ExploreCategoryFilter>('all');
   const debouncedSearch = useDebouncedValue(searchText, 400);
+  const apiSearch = debouncedSearch.trim().length >= 2 ? debouncedSearch.trim() : '';
+  const inferredCategory = category === 'all' ? inferCategoryFromSearch(apiSearch) : null;
+  const searchCategory = inferredCategory ?? category;
 
   const destination = useMemo(() => {
     const d = activeTrip?.destination_label?.trim() || activeTrip?.name?.trim() || '';
@@ -45,21 +74,11 @@ export default function ExplorePlacesScreen() {
 
   const { data: places = [], isPending, isError, error, refetch, isRefetching } = useSearchPlaces(
     destination || undefined,
-    category,
+    searchCategory,
+    apiSearch,
   );
 
   const { data: placeIdSet } = useTripPlaceIds(activeTrip?.id);
-
-  const filteredPlaces = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) {
-      return places;
-    }
-    return places.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) || (p.address?.toLowerCase().includes(q) ?? false),
-    );
-  }, [places, debouncedSearch]);
 
   if (!activeTrip) {
     return (
@@ -126,6 +145,12 @@ export default function ExplorePlacesScreen() {
         />
       </View>
 
+      {apiSearch ? (
+        <Text style={{ paddingHorizontal: 20, marginTop: -8, marginBottom: 10, fontSize: 13, color: '#6B7280' }}>
+          {t('explore:searchingFor', { query: apiSearch, destination: destinationTitle })}
+        </Text>
+      ) : null}
+
       <CategoryFilter value={category} onChange={setCategory} />
 
       {isError ? (
@@ -152,7 +177,7 @@ export default function ExplorePlacesScreen() {
         </View>
       ) : (
         <FlatList
-          data={filteredPlaces}
+          data={places}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={ORANGE} />

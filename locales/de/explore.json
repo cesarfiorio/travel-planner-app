@@ -3,6 +3,7 @@
   "screenTitle": "Explore",
   "topPlacesSection": "Top Orte",
   "searchPlaceholder": "Orte suchen…",
+  "searchingFor": "Suche nach {{query}} in {{destination}}",
   "ratingReviewsLine": "{{rating}} ({{count}} Bewertungen)",
   "placeBadge_restaurants": "Restaurant",
   "placeBadge_attractions": "Sehenswürdigkeit",

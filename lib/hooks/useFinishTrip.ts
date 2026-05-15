@@ -36,6 +36,8 @@ export type FinishTripInput = {
   coverLocalUri: string | null;
   /** Saved on `trip_memories` when creating a memory; `null` = use itinerary suggestion only. */
   favoritePlaceId: string | null;
+  hotelNames: string | null;
+  accommodationRating: number | null;
   placesVisited: number;
   totalSpentCents: number;
   travelersCount: number;
@@ -152,6 +154,8 @@ export function useFinishTrip() {
           is_public: true,
           route_geojson: routeGeoJson,
           cover_photo_url: coverUrl,
+          hotel_names: input.hotelNames?.trim() || null,
+          accommodation_rating: input.accommodationRating,
           updated_at: now,
         });
         if (crErr) {
@@ -167,6 +171,8 @@ export function useFinishTrip() {
           cover_photo_url: coverUrl,
           cover_place_id: coverUrl ? null : input.coverPlaceId,
           favorite_place_id: input.favoritePlaceId,
+          hotel_names: input.hotelNames?.trim() || null,
+          accommodation_rating: input.accommodationRating,
           places_visited: input.placesVisited,
           total_spent_cents: input.totalSpentCents,
           travelers_count: input.travelersCount,

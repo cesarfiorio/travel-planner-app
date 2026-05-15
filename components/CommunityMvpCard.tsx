@@ -71,9 +71,9 @@ export function CommunityMvpCard({
   const destForCover = dest || title;
   const { data: freeCoverUrl, isFetching: freeCoverLoading } = useDestinationCoverPhoto(
     destForCover,
-    !storedCover && destForCover.trim().length >= 2,
+    destForCover.trim().length >= 2,
   );
-  const coverUri = storedCover || freeCoverUrl || null;
+  const coverUri = freeCoverUrl || storedCover || null;
 
   return (
     <View

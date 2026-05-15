@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasSupabaseEnv, supabase } from '../supabase';
 import type { Json, Tables } from '../supabase/types';
 
+import { communityFeedQueryKey } from './useCommunityRoutes';
 import { useAuth } from './useAuth';
 
 export const tripMemoryQueryKey = (tripId: string) => ['tripMemory', tripId] as const;
@@ -45,6 +46,8 @@ export function useUpdateTripMemory() {
       cover_photo_url?: string | null;
       cover_place_id?: string | null;
       favorite_place_id?: string | null;
+      hotel_names?: string | null;
+      accommodation_rating?: number | null;
     }) => {
       if (!supabase || !userId) {
         throw new Error('Not signed in');
@@ -67,13 +70,42 @@ export function useUpdateTripMemory() {
       if (payload.favorite_place_id !== undefined) {
         patch.favorite_place_id = payload.favorite_place_id;
       }
+      if (payload.hotel_names !== undefined) {
+        patch.hotel_names = payload.hotel_names?.trim() || null;
+      }
+      if (payload.accommodation_rating !== undefined) {
+        patch.accommodation_rating = payload.accommodation_rating;
+      }
       const { error } = await supabase.from('trip_memories').update(patch).eq('id', payload.memoryId).eq('created_by', userId);
       if (error) {
         throw error;
       }
+      if (payload.hotel_names !== undefined || payload.accommodation_rating !== undefined) {
+        const routePatch: Record<string, unknown> = {
+          updated_at: new Date().toISOString(),
+        };
+        if (payload.hotel_names !== undefined) {
+          routePatch.hotel_names = payload.hotel_names?.trim() || null;
+        }
+        if (payload.accommodation_rating !== undefined) {
+          routePatch.accommodation_rating = payload.accommodation_rating;
+        }
+        const { error: routeErr } = await supabase
+          .from('community_routes')
+          .update(routePatch)
+          .eq('trip_id', payload.tripId)
+          .eq('creator_id', userId);
+        if (routeErr) {
+          throw routeErr;
+        }
+      }
     },
     onSuccess: (_void, v) => {
       void queryClient.invalidateQueries({ queryKey: tripMemoryQueryKey(v.tripId) });
+      if (v.hotel_names !== undefined || v.accommodation_rating !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: communityFeedQueryKey });
+        void queryClient.invalidateQueries({ queryKey: ['communityRoute'] });
+      }
     },
   });
 }

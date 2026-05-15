@@ -27,8 +27,6 @@ import { parseLocalDate, tripDurationDays } from '../../lib/trips/tripUi';
 
 const SCREEN_BG = '#F3F4F6';
 const ORANGE = '#F05A1A';
-/** Space so the last list row clears the stacked floating action buttons. */
-const ITINERARY_FLOATING_ACTIONS_CLEARANCE = 132;
 
 export default function ItineraryScreen() {
   const { t } = useTranslation(['trips', 'common']);
@@ -270,6 +268,46 @@ export default function ItineraryScreen() {
           );
         })}
       </ScrollView>
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: SPACING.sm,
+          paddingHorizontal: SPACING.xl,
+          paddingTop: 0,
+          paddingBottom: SPACING.sm,
+        }}
+      >
+        <Pressable
+          onPress={() => router.push('/(tabs)/explore')}
+          style={{
+            flex: 1,
+            paddingVertical: 9,
+            borderRadius: RADIUS.pill,
+            backgroundColor: ORANGE,
+            alignItems: 'center',
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('itineraryAddActivity')}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: FONT.sm, fontWeight: FONT.bold }}>{t('itineraryAddActivity')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setCustomActivityOpen(true)}
+          style={{
+            flex: 1,
+            paddingVertical: 9,
+            borderRadius: RADIUS.pill,
+            borderWidth: 1,
+            borderColor: ORANGE,
+            backgroundColor: COLORS.cardBg,
+            alignItems: 'center',
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('itineraryAddCustomA11y')}
+        >
+          <Text style={{ color: ORANGE, fontSize: FONT.sm, fontWeight: FONT.bold }}>{t('itineraryAddCustomCta')}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -365,7 +403,7 @@ export default function ItineraryScreen() {
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 4,
-            paddingBottom: ITINERARY_FLOATING_ACTIONS_CLEARANCE + insets.bottom + 12,
+            paddingBottom: insets.bottom + 24,
             flexGrow: 1,
           }}
           ListEmptyComponent={
@@ -407,51 +445,6 @@ export default function ItineraryScreen() {
         }
       />
 
-      <View
-        pointerEvents="box-none"
-        style={{
-          position: 'absolute',
-          left: 16,
-          right: 16,
-          bottom: Math.max(insets.bottom, 10) + 6,
-          zIndex: 100,
-          elevation: 12,
-          gap: 10,
-        }}
-      >
-        <Pressable
-          onPress={() => router.push('/(tabs)/explore')}
-          style={{
-            paddingVertical: 16,
-            borderRadius: 9999,
-            backgroundColor: ORANGE,
-            alignItems: 'center',
-            ...SHADOW.lg,
-            elevation: 6,
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={t('itineraryAddActivity')}
-        >
-          <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700' }}>{t('itineraryAddActivity')}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setCustomActivityOpen(true)}
-          style={{
-            paddingVertical: 14,
-            borderRadius: 9999,
-            borderWidth: 1.5,
-            borderColor: ORANGE,
-            backgroundColor: COLORS.cardBg,
-            alignItems: 'center',
-            ...SHADOW.md,
-            elevation: 5,
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={t('itineraryAddCustomA11y')}
-        >
-          <Text style={{ color: ORANGE, fontSize: 16, fontWeight: '700' }}>{t('itineraryAddCustomCta')}</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }

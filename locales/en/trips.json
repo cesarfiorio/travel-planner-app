@@ -119,7 +119,7 @@
   "itineraryAddCustomCta": "Add your own activity",
   "itineraryAddCustomA11y": "Add a custom activity to this day",
   "itineraryAddCustomTitle": "Your own activity",
-  "itineraryAddCustomFieldTitle": "What are you doing?",
+  "itineraryAddCustomFieldTitle": "Name",
   "itineraryAddCustomFieldNotes": "Notes (optional)",
   "itineraryAddCustomTitlePlaceholder": "e.g. Go to my friend's house",
   "itineraryAddCustomSave": "Add to itinerary",

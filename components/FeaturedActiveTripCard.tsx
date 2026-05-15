@@ -8,28 +8,14 @@ import { ProfileTripOverflowMenu } from './ProfileTripOverflowMenu';
 
 import { formatItineraryDestinationSubtitle } from '../lib/itinerary/itinerarySubtitle';
 import type { TripWithDetails } from '../lib/hooks/useTrips';
+import { useDestinationCoverPhoto } from '../lib/hooks/useDestinationCoverPhoto';
 import { tripRowToSnapshot, useAppStore } from '../lib/store/appStore';
-import { deriveTripUiStatus, isTripOnOrAfterEndDateLocal, primaryTripEntryPath } from '../lib/trips/tripUi';
+import { deriveTripUiStatus, isTripOnOrAfterEndDateLocal } from '../lib/trips/tripUi';
 import { formatTripHeroDateRange } from '../lib/trips/tripDateFormat';
 
 const ORANGE = '#F05A1A';
 const CARD_RADIUS = 16;
-const HERO_H = 220;
-
-/** Rotate hero photos for visual variety (Unsplash). */
-const HERO_URLS = [
-  'https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=1200&q=80',
-  'https://images.unsplash.com/photo-1564594736624-def7a10ab047?w=1200&q=80',
-  'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200&q=80',
-] as const;
-
-function heroUrlForTripId(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    h = (h + id.charCodeAt(i)) >>> 0;
-  }
-  return HERO_URLS[h % HERO_URLS.length];
-}
+const HERO_H = 154;
 
 type Props = {
   trip: TripWithDetails;
@@ -63,25 +49,25 @@ export function FeaturedActiveTripCard({
 
   const destLine = formatItineraryDestinationSubtitle(trip.destination_label, trip.name);
   const dateLine = formatTripHeroDateRange(trip.start_date, trip.end_date, locale);
+  const destinationForCover = trip.destination_label?.trim() || trip.name?.trim() || '';
+  const { data: destinationCoverUrl } = useDestinationCoverPhoto(destinationForCover, destinationForCover.length >= 2);
 
   /** Profile "Your trips": on/after end date (last day or later), CTA completes and opens recap. */
   const showCompleteInsteadOfSwitch = selectActiveOnly && isTripOnOrAfterEndDateLocal(trip);
 
   const openDetail = () => {
     setActiveTrip(tripRowToSnapshot(trip));
-    if (!selectActiveOnly) {
-      router.push(primaryTripEntryPath(trip));
-      return;
-    }
     if (showCompleteInsteadOfSwitch) {
       router.push(`/trip/${trip.id}/finish`);
+      return;
     }
+    router.push('/(tabs)/explore');
   };
 
   const ctaLabel = selectActiveOnly
     ? showCompleteInsteadOfSwitch
       ? t('featuredCompleteTripCta')
-      : t('switchTripTitle')
+      : t('viewDetails')
     : t('viewDetails');
   const overflowLabel = trip.name?.trim() || trip.destination_label?.trim() || t('detailTitle');
   const showOverflowTrigger =
@@ -113,9 +99,11 @@ export function FeaturedActiveTripCard({
           }
         >
           <View style={{ height: HERO_H, width: '100%', backgroundColor: '#E5E7EB' }}>
-            <Image source={{ uri: heroUrlForTripId(trip.id) }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+            {destinationCoverUrl ? (
+              <Image source={{ uri: destinationCoverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+            ) : null}
             <LinearGradient
-              colors={['rgba(0,0,0,0.2)', 'transparent', 'rgba(0,0,0,0.65)']}
+              colors={['rgba(0,0,0,0.08)', 'transparent', 'rgba(0,0,0,0.68)']}
               locations={[0, 0.45, 1]}
               style={{
                 position: 'absolute',
@@ -128,42 +116,42 @@ export function FeaturedActiveTripCard({
             <View
               style={{
                 position: 'absolute',
-                top: 14,
+                top: 70,
                 left: 14,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
                 borderRadius: 20,
                 backgroundColor: 'rgba(255,255,255,0.95)',
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>{badgeLabel}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#111827' }}>{badgeLabel}</Text>
             </View>
-            <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
+            <View style={{ position: 'absolute', left: 14, right: 14, bottom: 13 }}>
               {destLine ? (
-                <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={2}>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={1}>
                   {destLine}
                 </Text>
               ) : (
-                <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={2}>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={1}>
                   {trip.name?.trim() || t('detailTitle')}
                 </Text>
               )}
               {dateLine ? (
-                <Text style={{ fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.92)', marginTop: 6 }}>{dateLine}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.95)', marginTop: 4 }}>{dateLine}</Text>
               ) : null}
             </View>
           </View>
-          <View style={{ backgroundColor: '#F05A1A', padding: 14 }}>
+          <View style={{ backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 13 }}>
             <View
               style={{
                 width: '100%',
-                paddingVertical: 14,
+                paddingVertical: 12,
                 paddingHorizontal: 20,
                 borderRadius: 999,
                 backgroundColor: ORANGE,
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' }}>
                 {ctaLabel}
               </Text>
             </View>

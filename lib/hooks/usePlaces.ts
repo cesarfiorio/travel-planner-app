@@ -7,19 +7,20 @@ import { hasSupabaseEnv, supabase } from '../supabase';
 import type { ExploreCategoryFilter, Place, PlaceCategory } from '../../types/places';
 import { EXPLORE_PARALLEL_CATEGORIES } from '../../types/places';
 
-export const searchPlacesQueryKey = (destination: string, category: ExploreCategoryFilter) =>
-  ['searchPlaces', destination.trim().toLowerCase(), category] as const;
+export const searchPlacesQueryKey = (destination: string, category: ExploreCategoryFilter, query = '') =>
+  ['searchPlaces', destination.trim().toLowerCase(), category, query.trim().toLowerCase()] as const;
 
 const STALE_MS = 10 * 60 * 1000;
 
-export function useSearchPlaces(destination: string | undefined, category: ExploreCategoryFilter) {
+export function useSearchPlaces(destination: string | undefined, category: ExploreCategoryFilter, query = '') {
   const { session, isReady } = useAuth();
   const dest = destination?.trim() ?? '';
+  const q = query.trim();
   const hasUserJwt = Boolean(session?.access_token);
   const enabled = Boolean(dest && hasSupabaseEnv && supabase && isReady && hasUserJwt);
 
   return useQuery({
-    queryKey: searchPlacesQueryKey(dest || '_', category),
+    queryKey: searchPlacesQueryKey(dest || '_', category, q),
     enabled,
     staleTime: STALE_MS,
     queryFn: async (): Promise<Place[]> => {
@@ -28,7 +29,7 @@ export function useSearchPlaces(destination: string | undefined, category: Explo
       }
       if (category === 'all') {
         const batches = await Promise.all(
-          EXPLORE_PARALLEL_CATEGORIES.map((c) => searchPlaces(dest, c as PlaceCategory)),
+          EXPLORE_PARALLEL_CATEGORIES.map((c) => searchPlaces(dest, c as PlaceCategory, q)),
         );
         const map = new Map<string, Place>();
         for (const arr of batches) {
@@ -38,7 +39,7 @@ export function useSearchPlaces(destination: string | undefined, category: Explo
         }
         return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
       }
-      return searchPlaces(dest, category as PlaceCategory);
+      return searchPlaces(dest, category as PlaceCategory, q);
     },
   });
 }

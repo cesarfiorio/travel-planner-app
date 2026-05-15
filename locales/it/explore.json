@@ -3,6 +3,7 @@
   "screenTitle": "Explore",
   "topPlacesSection": "Luoghi top",
   "searchPlaceholder": "Cerca luoghi…",
+  "searchingFor": "Ricerca di {{query}} a {{destination}}",
   "ratingReviewsLine": "{{rating}} ({{count}} recensioni)",
   "placeBadge_restaurants": "Ristorante",
   "placeBadge_attractions": "Attrazione",

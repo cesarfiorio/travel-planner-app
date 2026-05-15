@@ -256,38 +256,40 @@ Deno.serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceKey);
   const cacheThreshold = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: cachedRows, error: cacheErr } = await admin
-    .from('places')
-    .select(
-      'id, google_place_id, name, category, formatted_address, latitude, longitude, rating, price_level, photos, opening_hours, website, phone, metadata',
-    )
-    .eq('destination_normalized', normDest)
-    .eq('category', category)
-    .not('cached_at', 'is', null)
-    .gt('cached_at', cacheThreshold)
-    .order('name', { ascending: true });
+  if (!optionalQuery) {
+    const { data: cachedRows, error: cacheErr } = await admin
+      .from('places')
+      .select(
+        'id, google_place_id, name, category, formatted_address, latitude, longitude, rating, price_level, photos, opening_hours, website, phone, metadata',
+      )
+      .eq('destination_normalized', normDest)
+      .eq('category', category)
+      .not('cached_at', 'is', null)
+      .gt('cached_at', cacheThreshold)
+      .order('name', { ascending: true });
 
-  if (cacheErr) {
-    return new Response(JSON.stringify({ error: 'cache_read_failed' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (cachedRows && cachedRows.length > 0) {
-    const ids = cachedRows.map((r) => r.id);
-    const { error: bumpErr } = await admin.rpc('routeflow_increment_places_views', { p_ids: ids });
-    if (bumpErr) {
-      return new Response(JSON.stringify({ error: 'cache_update_failed' }), {
+    if (cacheErr) {
+      return new Response(JSON.stringify({ error: 'cache_read_failed' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const places = (cachedRows as DbPlaceRow[]).map((row) => rowToPlace(row, category));
-    return new Response(JSON.stringify({ places }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+
+    if (cachedRows && cachedRows.length > 0) {
+      const ids = cachedRows.map((r) => r.id);
+      const { error: bumpErr } = await admin.rpc('routeflow_increment_places_views', { p_ids: ids });
+      if (bumpErr) {
+        return new Response(JSON.stringify({ error: 'cache_update_failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const places = (cachedRows as DbPlaceRow[]).map((row) => rowToPlace(row, category));
+      return new Response(JSON.stringify({ places }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   const searchParts = [optionalQuery, destinationRaw.trim(), CATEGORY_QUERY_HINT[category]].filter(Boolean);

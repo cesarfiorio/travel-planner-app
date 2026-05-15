@@ -60,6 +60,8 @@ export type PublishCompletedTripToCommunityInput = {
   tags: string[];
   travelStyle: TravelStyleId;
   coverPhotoUrl?: string | null;
+  hotelNames?: string | null;
+  accommodationRating?: number | null;
 };
 
 export function usePublishCompletedTripToCommunity() {
@@ -174,6 +176,8 @@ export function usePublishCompletedTripToCommunity() {
             duration_days: durationDays,
             route_geojson: routeGeoJson,
             cover_photo_url: input.coverPhotoUrl?.trim() || null,
+            hotel_names: input.hotelNames?.trim() || null,
+            accommodation_rating: input.accommodationRating ?? null,
             updated_at: now,
             published_at: now,
           })
@@ -199,6 +203,8 @@ export function usePublishCompletedTripToCommunity() {
         is_public: true,
         route_geojson: routeGeoJson,
         cover_photo_url: input.coverPhotoUrl?.trim() || null,
+        hotel_names: input.hotelNames?.trim() || null,
+        accommodation_rating: input.accommodationRating ?? null,
         updated_at: now,
       });
       if (crErr) {

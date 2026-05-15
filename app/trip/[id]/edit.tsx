@@ -36,8 +36,13 @@ function stripTime(d: Date): Date {
 }
 
 export default function EditTripScreen() {
-  const { id: rawId } = useLocalSearchParams<{ id: string | string[] }>();
+  const { id: rawId, fromCommunityRoute } = useLocalSearchParams<{
+    id: string | string[];
+    fromCommunityRoute?: string | string[];
+  }>();
   const tripId = Array.isArray(rawId) ? rawId[0] : rawId;
+  const shouldReturnToProfile =
+    (Array.isArray(fromCommunityRoute) ? fromCommunityRoute[0] : fromCommunityRoute) === '1';
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation(['trips', 'common']);
@@ -110,6 +115,10 @@ export default function EditTripScreen() {
       },
       {
         onSuccess: () => {
+          if (shouldReturnToProfile) {
+            router.replace('/(tabs)/profile');
+            return;
+          }
           router.back();
         },
         onError: (e) => {

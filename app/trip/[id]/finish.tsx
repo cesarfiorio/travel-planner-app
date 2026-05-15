@@ -47,6 +47,7 @@ import { captureAndShare, type ShareFormat } from '../../../lib/utils/shareCard'
 import * as Localization from 'expo-localization';
 
 const MOODS: MemoryMood[] = ['amazing', 'great', 'good', 'mixed'];
+const ACCOMMODATION_RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 function memoryMoodText(mood: string, tm: TFunction<'memory'>): string {
   if (mood === 'amazing') {
@@ -62,6 +63,13 @@ function memoryMoodText(mood: string, tm: TFunction<'memory'>): string {
     return tm('mood_mixed');
   }
   return mood;
+}
+
+function normalizeAccommodationRating(value: number | null): number | null {
+  if (!Number.isInteger(value) || value == null) {
+    return null;
+  }
+  return Math.min(10, Math.max(1, value));
 }
 
 export default function FinishTripScreen() {
@@ -111,6 +119,8 @@ export default function FinishTripScreen() {
   const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
   /** `null` = use suggested favorite (most stops); otherwise explicit `places.id`. */
   const [favoritePlaceId, setFavoritePlaceId] = useState<string | null>(null);
+  const [hotelNamesDraft, setHotelNamesDraft] = useState('');
+  const [accommodationRating, setAccommodationRating] = useState<number | null>(null);
 
   useEffect(() => {
     memoryEnsureAttempted.current = false;
@@ -118,13 +128,17 @@ export default function FinishTripScreen() {
 
   useEffect(() => {
     setFavoritePlaceId(null);
+    setHotelNamesDraft('');
+    setAccommodationRating(null);
   }, [tripId]);
 
   useEffect(() => {
     if (trip?.status === 'completed' && memory) {
       setFavoritePlaceId(memory.favorite_place_id ?? null);
+      setHotelNamesDraft(memory.hotel_names ?? '');
+      setAccommodationRating(memory.accommodation_rating ?? null);
     }
-  }, [trip?.status, memory?.id, memory?.favorite_place_id]);
+  }, [trip?.status, memory?.id, memory?.favorite_place_id, memory?.hotel_names, memory?.accommodation_rating]);
 
   useEffect(() => {
     communityFormSeededRef.current = '';
@@ -384,6 +398,19 @@ export default function FinishTripScreen() {
     },
     [isCompleted, memory?.id, isOwner, tripId, updateTripMemoryPlaces],
   );
+
+  const saveAccommodationDetails = useCallback((nextHotelNames = hotelNamesDraft, nextRating = accommodationRating) => {
+    if (!isCompleted || !memory?.id || !isOwner || !tripId) {
+      return;
+    }
+    updateTripMemoryPlaces.mutate({
+      memoryId: memory.id,
+      tripId,
+      hotel_names: nextHotelNames,
+      accommodation_rating: normalizeAccommodationRating(nextRating),
+    });
+  }, [accommodationRating, hotelNamesDraft, isCompleted, isOwner, memory?.id, tripId, updateTripMemoryPlaces]);
+
   const perPersonCents =
     travelersCount > 0 ? Math.round(spentCentsForDisplay / travelersCount) : spentCentsForDisplay;
   const perPersonLabel = useMemo(
@@ -463,6 +490,8 @@ export default function FinishTripScreen() {
         tags: publishTags,
         travelStyle: publishTravelStyle,
         coverPhotoUrl: destinationHeroUrl?.trim() || memory.cover_photo_url,
+        hotelNames: hotelNamesDraft,
+        accommodationRating: normalizeAccommodationRating(accommodationRating),
       },
       {
         onSuccess: () => {
@@ -489,6 +518,8 @@ export default function FinishTripScreen() {
     router,
     tm,
     destinationHeroUrl,
+    hotelNamesDraft,
+    accommodationRating,
   ]);
 
   const buildPayload = () => ({
@@ -509,6 +540,8 @@ export default function FinishTripScreen() {
     coverPlaceId: null,
     coverLocalUri: null,
     favoritePlaceId,
+    hotelNames: hotelNamesDraft,
+    accommodationRating: normalizeAccommodationRating(accommodationRating),
     placesVisited,
     totalSpentCents,
     travelersCount,
@@ -559,6 +592,8 @@ export default function FinishTripScreen() {
         coverPlaceId: null,
         coverLocalUri: null,
         favoritePlaceId: null,
+        hotelNames: null,
+        accommodationRating: null,
         placesVisited,
         totalSpentCents,
         travelersCount,
@@ -863,6 +898,95 @@ export default function FinishTripScreen() {
                 </View>
               ) : null}
             </View>
+            {isCompleted && memory ? (
+              <View style={{ backgroundColor: cardBg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Ionicons name="bed-outline" size={22} color={colors.primarySolid} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, color: colors.inactive }}>{tm('accommodationTitle')}</Text>
+                    <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
+                      {accommodationRating ? tm('accommodationRatingValue', { rating: accommodationRating }) : '—'}
+                    </Text>
+                  </View>
+                </View>
+                {isOwner ? (
+                  <>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 6 }}>{tm('hotelNamesLabel')}</Text>
+                    <TextInput
+                      value={hotelNamesDraft}
+                      onChangeText={setHotelNamesDraft}
+                      onBlur={() => saveAccommodationDetails()}
+                      multiline
+                      maxLength={500}
+                      placeholder={tm('hotelNamesPlaceholder')}
+                      placeholderTextColor={colors.inactive}
+                      style={{
+                        minHeight: 72,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        borderRadius: 12,
+                        padding: 12,
+                        fontSize: 16,
+                        color: colors.text,
+                        textAlignVertical: 'top',
+                        marginBottom: 12,
+                        backgroundColor: '#fff',
+                      }}
+                    />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{tm('accommodationRatingLabel')}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                      {ACCOMMODATION_RATINGS.map((rating) => {
+                        const selected = accommodationRating === rating;
+                        return (
+                          <Pressable
+                            key={rating}
+                            onPress={() => {
+                              setAccommodationRating(rating);
+                              saveAccommodationDetails(hotelNamesDraft, rating);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected }}
+                            accessibilityLabel={tm('accommodationRatingValue', { rating })}
+                            style={{
+                              width: 42,
+                              height: 38,
+                              borderRadius: 12,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: selected ? colors.primarySolid : '#F3F4F6',
+                              borderWidth: 1,
+                              borderColor: selected ? colors.primarySolid : colors.border,
+                            }}
+                          >
+                            <Text style={{ fontWeight: '800', color: selected ? colors.onPrimary : colors.text }}>{rating}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Pressable
+                      onPress={() => saveAccommodationDetails()}
+                      disabled={updateTripMemoryPlaces.isPending}
+                      style={{
+                        alignSelf: 'flex-start',
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 12,
+                        backgroundColor: colors.primarySolid,
+                        opacity: updateTripMemoryPlaces.isPending ? 0.7 : 1,
+                      }}
+                    >
+                      <Text style={{ color: colors.onPrimary, fontWeight: '800' }}>{tm('accommodationSave')}</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Text style={{ fontSize: 15, color: colors.text, lineHeight: 22 }}>
+                    {memory.hotel_names?.trim() || tm('accommodationEmpty')}
+                  </Text>
+                )}
+              </View>
+            ) : null}
             <View style={{ backgroundColor: cardBg, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
               <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                 <Ionicons name="wallet-outline" size={22} color={colors.primarySolid} />
@@ -993,6 +1117,54 @@ export default function FinishTripScreen() {
                         <Text style={{ fontWeight: '700' }}>{(tm as (k: string) => string)(`mood_${m}`)}</Text>
                       </Pressable>
                     ))}
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 6 }}>{tm('hotelNamesLabel')}</Text>
+                  <TextInput
+                    value={hotelNamesDraft}
+                    onChangeText={setHotelNamesDraft}
+                    multiline
+                    maxLength={500}
+                    placeholder={tm('hotelNamesPlaceholder')}
+                    placeholderTextColor={colors.inactive}
+                    style={{
+                      minHeight: 72,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 12,
+                      padding: 12,
+                      fontSize: 16,
+                      color: colors.text,
+                      textAlignVertical: 'top',
+                      marginBottom: 12,
+                      backgroundColor: cardBg,
+                    }}
+                  />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inactive, marginBottom: 8 }}>{tm('accommodationRatingLabel')}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                    {ACCOMMODATION_RATINGS.map((rating) => {
+                      const selected = accommodationRating === rating;
+                      return (
+                        <Pressable
+                          key={rating}
+                          onPress={() => setAccommodationRating(rating)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={tm('accommodationRatingValue', { rating })}
+                          style={{
+                            width: 42,
+                            height: 38,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: selected ? colors.primarySolid : '#F3F4F6',
+                            borderWidth: 1,
+                            borderColor: selected ? colors.primarySolid : colors.border,
+                          }}
+                        >
+                          <Text style={{ fontWeight: '800', color: selected ? colors.onPrimary : colors.text }}>{rating}</Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </>
               ) : null}

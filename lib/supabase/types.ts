@@ -75,6 +75,7 @@ export type Database = {
       }
       community_routes: {
         Row: {
+          accommodation_rating: number | null
           cover_photo_url: string | null
           created_at: string
           creator_id: string
@@ -82,6 +83,7 @@ export type Database = {
           destination: string | null
           duration_days: number | null
           id: string
+          hotel_names: string | null
           is_public: boolean
           likes_count: number
           saves_count: number
@@ -97,6 +99,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accommodation_rating?: number | null
           cover_photo_url?: string | null
           created_at?: string
           creator_id: string
@@ -104,6 +107,7 @@ export type Database = {
           destination?: string | null
           duration_days?: number | null
           id?: string
+          hotel_names?: string | null
           is_public?: boolean
           likes_count?: number
           saves_count?: number
@@ -119,6 +123,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accommodation_rating?: number | null
           cover_photo_url?: string | null
           created_at?: string
           creator_id?: string
@@ -126,6 +131,7 @@ export type Database = {
           destination?: string | null
           duration_days?: number | null
           id?: string
+          hotel_names?: string | null
           is_public?: boolean
           likes_count?: number
           saves_count?: number
@@ -436,6 +442,7 @@ export type Database = {
       }
       trip_memories: {
         Row: {
+          accommodation_rating: number | null
           cover_photo_url: string | null
           cover_place_id: string | null
           favorite_place_id: string | null
@@ -444,6 +451,7 @@ export type Database = {
           destination_label: string | null
           end_date: string | null
           id: string
+          hotel_names: string | null
           itinerary_snapshot: Json | null
           mood: string
           places_visited: number
@@ -455,6 +463,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accommodation_rating?: number | null
           cover_photo_url?: string | null
           cover_place_id?: string | null
           favorite_place_id?: string | null
@@ -463,6 +472,7 @@ export type Database = {
           destination_label?: string | null
           end_date?: string | null
           id?: string
+          hotel_names?: string | null
           itinerary_snapshot?: Json | null
           mood: string
           places_visited?: number
@@ -474,6 +484,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accommodation_rating?: number | null
           cover_photo_url?: string | null
           cover_place_id?: string | null
           favorite_place_id?: string | null
@@ -482,6 +493,7 @@ export type Database = {
           destination_label?: string | null
           end_date?: string | null
           id?: string
+          hotel_names?: string | null
           itinerary_snapshot?: Json | null
           mood?: string
           places_visited?: number

@@ -154,10 +154,9 @@ export function useAdoptCommunityRoute() {
         }
       }
 
-      const { error: usedErr } = await supabase.from('route_used').upsert(
-        { route_id: input.routeId, user_id: uid, trip_id: trip.id },
-        { onConflict: 'user_id,route_id' },
-      );
+      const { error: usedErr } = await supabase
+        .from('route_used')
+        .insert({ route_id: input.routeId, user_id: uid, trip_id: trip.id });
       if (usedErr) {
         throw usedErr;
       }

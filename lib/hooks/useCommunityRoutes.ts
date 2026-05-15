@@ -23,6 +23,8 @@ function scoreFromRouteRow(r: { likes_count: number; published_at: string | null
 export type RankedRouteRow = Tables<'ranked_routes'>;
 
 export type CommunityRouteVm = RankedRouteRow & {
+  hotel_names?: string | null;
+  accommodation_rating?: number | null;
   creatorName: string;
   creatorAvatar: string | null;
   likedByMe: boolean;

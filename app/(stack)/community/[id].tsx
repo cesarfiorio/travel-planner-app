@@ -19,7 +19,6 @@ import {
   useCommunityRoute,
   useCommunitySourceItinerary,
   useToggleRouteLike,
-  useToggleRouteSave,
 } from '../../../lib/hooks/useCommunityRoutes';
 import { useDestinationCoverPhoto } from '../../../lib/hooks/useDestinationCoverPhoto';
 import { FREE_OWNER_TRIP_LIMIT, useSubscription } from '../../../lib/hooks/useSubscription';
@@ -132,7 +131,7 @@ export default function CommunityRouteDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const locale = Localization.getLocales()[0]?.languageTag ?? 'en-US';
-  const { t } = useTranslation(['community', 'share', 'trips', 'common']);
+  const { t } = useTranslation(['community', 'share', 'trips', 'common', 'memory']);
   const { data: route, isPending, isError } = useCommunityRoute(routeId);
   const { data: trips = [] } = useMyTrips();
   const { user } = useAuth();
@@ -142,13 +141,11 @@ export default function CommunityRouteDetailScreen() {
   const adoptRoute = useAdoptCommunityRoute();
 
   const destForCover = route?.destination?.trim() || route?.title?.trim() || '';
-  const hasStoredCover = Boolean(route?.cover_photo_url?.trim());
   const { data: freeCoverUrl, isFetching: freeCoverLoading } = useDestinationCoverPhoto(
     destForCover,
-    Boolean(route) && !hasStoredCover && destForCover.length >= 2,
+    Boolean(route) && destForCover.length >= 2,
   );
   const toggleLike = useToggleRouteLike();
-  const toggleSave = useToggleRouteSave();
   const routeCardRef = useRef<RouteShareCardHandle>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -255,33 +252,17 @@ export default function CommunityRouteDetailScreen() {
 
   const ownedTripCount = useMemo(() => trips.filter((tr) => tr.created_by === userId).length, [trips, userId]);
 
-  const runAdopt = (navigateToTrip: boolean) => {
+  const runAdopt = () => {
     if (!route) {
       return;
     }
     const existingId = route.adoptedTripId?.trim();
     if (existingId) {
-      if (navigateToTrip) {
-        const row = trips.find((x) => x.id === existingId);
-        if (row) {
-          setActiveTrip(tripRowToSnapshot(row));
-        }
-        router.push(`/trip/${existingId}`);
-      } else {
-        Alert.alert(t('community:routeAlreadyAdded'), undefined, [
-          {
-            text: t('community:routeOpenTrip'),
-            onPress: () => {
-              const row = trips.find((x) => x.id === existingId);
-              if (row) {
-                setActiveTrip(tripRowToSnapshot(row));
-              }
-              router.push(`/trip/${existingId}`);
-            },
-          },
-          { text: t('common:cancel'), style: 'cancel' },
-        ]);
+      const row = trips.find((x) => x.id === existingId);
+      if (row) {
+        setActiveTrip(tripRowToSnapshot(row));
       }
+      router.push(`/trip/${existingId}/edit?fromCommunityRoute=1`);
       return;
     }
 
@@ -304,11 +285,7 @@ export default function CommunityRouteDetailScreen() {
       },
       {
         onSuccess: (tripId) => {
-          if (navigateToTrip) {
-            router.push(`/trip/${tripId}`);
-          } else {
-            Alert.alert(t('community:routeAddedTitle'), t('community:routeAddedBody'));
-          }
+          router.push(`/trip/${tripId}/edit?fromCommunityRoute=1`);
         },
         onError: (e) =>
           Alert.alert(t('community:errorTitle'), formatErrorMessage(e, t('community:routeAdoptError'))),
@@ -350,7 +327,9 @@ export default function CommunityRouteDetailScreen() {
         ? (t as (k: string) => string)(`community:style_${styleKey}`)
         : '';
   const tags = (route.tags ?? []).slice(0, 6);
-  const coverUri = route.cover_photo_url?.trim() || freeCoverUrl || null;
+  const coverUri = freeCoverUrl || route.cover_photo_url?.trim() || null;
+  const hotelNames = route.hotel_names?.trim() || '';
+  const accommodationRating = route.accommodation_rating ?? null;
   const initial = route.creatorName?.trim()?.charAt(0)?.toUpperCase() || '?';
   const creatorSubtitle = route.creatorBio?.trim() || t('community:creatorDefaultBio');
   const description = route.description?.trim() || '';
@@ -373,15 +352,6 @@ export default function CommunityRouteDetailScreen() {
   const onToggleLike = () => {
     toggleLike.mutate(
       { routeId: route.id, liked: route.likedByMe },
-      {
-        onError: (e) => Alert.alert(t('community:errorTitle'), formatErrorMessage(e, t('community:errorGeneric'))),
-      },
-    );
-  };
-
-  const onToggleSave = () => {
-    toggleSave.mutate(
-      { routeId: route.id, saved: route.savedByMe },
       {
         onError: (e) => Alert.alert(t('community:errorTitle'), formatErrorMessage(e, t('community:errorGeneric'))),
       },
@@ -513,20 +483,6 @@ export default function CommunityRouteDetailScreen() {
                   )}
                   <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{route.likes_count ?? 0}</Text>
                 </Pressable>
-                <Pressable
-                  onPress={onToggleSave}
-                  disabled={toggleSave.isPending}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('community:saveA11y')}
-                >
-                  {toggleSave.isPending ? (
-                    <ActivityIndicator size="small" color={ORANGE} />
-                  ) : (
-                    <Ionicons name={route.savedByMe ? 'bookmark' : 'bookmark-outline'} size={22} color={route.savedByMe ? ORANGE : colors.text} />
-                  )}
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{route.saves_count ?? 0}</Text>
-                </Pressable>
               </View>
             </View>
 
@@ -563,6 +519,45 @@ export default function CommunityRouteDetailScreen() {
             value={bestSpotName ?? '—'}
           />
         </View>
+
+        {hotelNames || accommodationRating ? (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 18,
+              backgroundColor: '#fff',
+              borderRadius: CARD_RADIUS,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: hotelNames ? 10 : 0 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#FFF7ED',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Ionicons name="bed-outline" size={22} color={ORANGE} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, color: colors.inactive }}>{t('memory:accommodationTitle')}</Text>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
+                  {accommodationRating ? t('memory:accommodationRatingValue', { rating: accommodationRating }) : '—'}
+                </Text>
+              </View>
+            </View>
+            {hotelNames ? (
+              <Text style={{ fontSize: 15, color: '#374151', lineHeight: 22 }}>{hotelNames}</Text>
+            ) : null}
+          </View>
+        ) : null}
 
         {displayItinerary.kind !== 'empty' ? (
           <View style={{ marginHorizontal: 16, marginTop: 24 }}>
@@ -858,7 +853,7 @@ export default function CommunityRouteDetailScreen() {
         }}
       >
         <Pressable
-          onPress={() => runAdopt(false)}
+          onPress={runAdopt}
           disabled={busyAdopt}
           style={{
             flex: 1,
@@ -876,24 +871,6 @@ export default function CommunityRouteDetailScreen() {
           ) : (
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>{t('community:useThisRouteCta')}</Text>
           )}
-        </Pressable>
-        <Pressable
-          onPress={() => runAdopt(true)}
-          disabled={busyAdopt}
-          style={{
-            flex: 1,
-            paddingVertical: 16,
-            borderRadius: 14,
-            backgroundColor: '#fff',
-            borderWidth: 1,
-            borderColor: '#D1D5DB',
-            alignItems: 'center',
-            opacity: busyAdopt ? 0.7 : 1,
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={t('community:customizeRouteCta')}
-        >
-          <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>{t('community:customizeRouteCta')}</Text>
         </Pressable>
       </View>
 
